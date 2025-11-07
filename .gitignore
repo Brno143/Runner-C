@@ -1,0 +1,11 @@
+# Executável do seu jogo (ajuste se o nome for diferente)
+Runner-C
+
+# Arquivos de objeto e outros de build
+*.o
+*.a
+
+# IDEs e Editores
+.vscode/
+.idea/
+*~
