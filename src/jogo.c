@@ -62,10 +62,27 @@ void UpdateGame(float dt){
 
 void DrawGame(void){
     BeginDrawing();
-        ClearBackground(DARKGRAY); //limpa a tela substituindo com a cor cinza
+        ClearBackground(DARKGRAY);
         
-        DrawCircleV(ladrao.position, 15, RED); //define o desenho do ladrao como um ponto vermelho
-        DrawCircleV(policia.position, 15, BLUE); //define o desenho da policia como um ponto azul
+        //DESENHAR O LADRÃO
+        DrawTexturePro(
+            texturaladrao, 
+            (Rectangle){ 0, 0, texturaladrao.width, texturaladrao.height }, // Fonte: Usar a imagem inteira
+            (Rectangle){ ladrao.position.x, ladrao.position.y, 60, 60 },    // Destino: Posição do ladrão e novo tamanho (30x30)
+            (Vector2){ 15, 15 }, // Origem: Centraliza o desenho no ponto (X, Y) do personagem
+            0.0f, // Rotação (0.0f = sem rotação)
+            WHITE // Cor: WHITE para usar as cores originais da imagem
+        );
+
+        //DESENHAR O POLICIAL
+        DrawTexturePro(
+            texturapolicia, 
+            (Rectangle){ 0, 0, texturapolicia.width, texturapolicia.height }, 
+            (Rectangle){ policia.position.x, policia.position.y, 60, 60 },
+            (Vector2){ 15, 15 }, 
+            0.0f, 
+            WHITE
+        );
 
         DrawText("CRONÔMETRO: 180s", 10, 10, 20, RAYWHITE); //cria um cronometro 
         

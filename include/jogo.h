@@ -19,4 +19,7 @@ void UpdateGame(float dt);
 void DrawGame(void);
 extern Character policia;
 extern Character ladrao;
+
+extern Texture2D texturaladrao;
+extern Texture2D texturapolicia;
 #endif
