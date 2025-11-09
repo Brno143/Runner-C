@@ -1,0 +1,47 @@
+[33mcommit 90337aedc63b8b1880a7fa6a3bed858992fff667[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m
+Author: Matheus freire <mfpc@cesar.school>
+Date:   Sun Nov 9 14:14:35 2025 -0300
+
+    personalização das skins
+
+[33mcommit 72e0acb4e094829439c178179ee6d4fa0418e3a8[m
+Author: matheus freire <mfpc@cesar.school>
+Date:   Sun Nov 9 14:12:12 2025 -0300
+
+    personalização dos personagens do jogo.
+
+[33mcommit 83750dd4a5b6b559d0b3b5c522bbe4b363b88b9b[m
+Author: matheus freire <mfpc@cesar.school>
+Date:   Sun Nov 9 12:59:03 2025 -0300
+
+    criação de logica para movimento e impedimento de fuga do mapa.
+
+[33mcommit 0542be8d400f3ca7bc276ca91f5fbeaa394f26e9[m
+Author: matheus freire <mfpc@cesar.school>
+Date:   Sat Nov 8 16:15:04 2025 -0300
+
+    inicio do jogo.
+
+[33mcommit d972e6045c3d0fd636a865a4481852cf7088937a[m[33m ([m[1;31morigin/main[m[33m)[m
+Author: Matheus freire <mfpc@cesar.school>
+Date:   Fri Nov 7 19:41:29 2025 -0300
+
+    teste
+
+[33mcommit 4f63dcfee40dc3181b500d2e72b1c0398ef5b30b[m
+Author: matheus freire <mfpc@cesar.school>
+Date:   Fri Nov 7 19:32:19 2025 -0300
+
+    teste
+
+[33mcommit ce99d8106fe3282e82e61310ca434966169637f2[m
+Author: Brno143 <bssah@cesar.school>
+Date:   Thu Nov 6 22:27:38 2025 -0300
+
+    commit inicial do projeto
+
+[33mcommit 91f87f45153a224e72d1efdaa0a48290f6fa604d[m
+Author: Bruno Holanda <bssah@cesar.school>
+Date:   Mon Nov 3 18:47:53 2025 -0300
+
+    Initial commit

@@ -1,7 +1,7 @@
 // src/main.c (CORREÇÃO)
 #include "jogo.h"
-const int alturaTela = 600;
-const int larguraTela = 800;
+const int alturaTela = 900;
+const int larguraTela = 1200;
 
 Character policia; 
 Character ladrao;
