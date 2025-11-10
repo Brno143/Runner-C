@@ -9,6 +9,7 @@
 #define MAP_COLS 20 //colunas do mapa 
 #define TILE_EMPTY 0 //0 para espaço vazio
 #define TILE_WALL 1 //1 para parede
+#define MAX_POLICIAS 3 // Máximo de policiais simultâneos
 
 // ===== RANKING SYSTEM =====
 #define RANKING_SIZE 10
@@ -26,10 +27,13 @@ typedef struct Character {
     float speed; //define a velocidade maxima
     float radius; //define o tamanho do personagem
     int role;
+    int active; // 1 se o jogador está ativo, 0 se não
+    int playerIndex; // Índice do jogador (0, 1, 2 para policiais)
 }Character;
 
 typedef enum gamescreen {   //"struct simples " para definir os estados do jogo
-    GAMEPLAY =1,
+    MENU = 0,
+    GAMEPLAY = 1,
     END_GAME = 2,
     
 }GameScreen;
@@ -63,7 +67,9 @@ void Ranking_AddLadrao(const char* name, int score);
 // Desenha os rankings na tela (usa raylib)
 void Ranking_DrawPolicia(int x, int y);
 void Ranking_DrawLadrao(int x, int y);
-extern Character policia;
+
+extern Character policias[MAX_POLICIAS]; // Array de policiais
+extern int numPolicias; // Número de policiais ativos (1-3)
 extern Character ladrao;
 
 extern Texture2D texturaladrao;
@@ -75,6 +81,7 @@ extern Texture2D wallTexture;
 extern Texture2D floorTexture;
 
 extern GameScreen currentScreen; //variavel para verificar o estao atual do jogo
-extern int gameResult;          // 1 se Policial vence, 0 se Ladrão vence (novo!)
+extern int gameResult;          // 1 se Policial vence, 0 se Ladrão vence
+extern int winnerPoliceIndex;   // Qual policial capturou (0, 1, 2)
 extern float gameTimer;        // cronômetro do jogo
 #endif

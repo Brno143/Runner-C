@@ -6,14 +6,16 @@ int lastScore = 0;
 char playerName[32] = "";
 int enteringName = 0;
 
-Character policia; 
+Character policias[MAX_POLICIAS];
+int numPolicias = 1; // Padrão: 1 policial (modo clássico)
 Character ladrao;
 
 Texture2D texturaladrao;
 Texture2D texturapolicia;
 
-GameScreen currentScreen = GAMEPLAY; 
-int gameResult = 0;                  
+GameScreen currentScreen = MENU; // Começa no menu
+int gameResult = 0;
+int winnerPoliceIndex = -1; // -1 = nenhum
 float gameTimer = 0.0f;              
 
 int main(void){
