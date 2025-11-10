@@ -1,13 +1,23 @@
 #ifndef JOGO_H
-#include "raylib.h"
-
-
 #define JOGO_H
+
+#include "raylib.h"
+#include <stddef.h>
+
 #define TILE_SIZE 60
 #define MAP_ROWS 15 //linhas do mapa 
 #define MAP_COLS 20 //colunas do mapa 
 #define TILE_EMPTY 0 //0 para espaço vazio
 #define TILE_WALL 1 //1 para parede
+
+// ===== RANKING SYSTEM =====
+#define RANKING_SIZE 10
+#define RANKING_NAME_MAX 31
+
+typedef struct ScoreEntry {
+    char name[RANKING_NAME_MAX+1];
+    int score;
+} ScoreEntry;
 
 
 typedef struct Character {
@@ -31,6 +41,28 @@ void UpdateGame(float dt);
 
 // Funções de desenho
 void DrawGame(void);
+
+// ===== VARIÁVEIS DE SCORE E RANKING =====
+// Último placar (preenchido ao terminar a partida)
+extern int lastScore;
+// Buffer para o nome do jogador (entrada durante a tela de fim de jogo)
+extern char playerName[32];
+// Flag que indica se estamos coletando o nome (END_GAME)
+extern int enteringName;
+
+// ===== FUNÇÕES DE RANKING =====
+// Carrega rankings do arquivo (ranking_policia.txt e ranking_ladrao.txt)
+void Ranking_LoadPolicia(void);
+void Ranking_LoadLadrao(void);
+// Salva rankings atuais nos arquivos
+void Ranking_SavePolicia(void);
+void Ranking_SaveLadrao(void);
+// Adiciona um novo score no ranking específico (mantém top RANKING_SIZE)
+void Ranking_AddPolicia(const char* name, int score);
+void Ranking_AddLadrao(const char* name, int score);
+// Desenha os rankings na tela (usa raylib)
+void Ranking_DrawPolicia(int x, int y);
+void Ranking_DrawLadrao(int x, int y);
 extern Character policia;
 extern Character ladrao;
 

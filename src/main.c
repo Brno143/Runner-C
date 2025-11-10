@@ -1,6 +1,11 @@
 #include "jogo.h"
 #include "raylib.h"
 
+// Variáveis definidas externamente em jogo.h
+int lastScore = 0;
+char playerName[32] = "";
+int enteringName = 0;
+
 Character policia; 
 Character ladrao;
 
@@ -21,6 +26,10 @@ int main(void){
     texturapolicia = LoadTexture("texturepolicia.png"); 
     
     SetTargetFPS(60); 
+
+    // carrega ambos rankings dos arquivos (se existirem)
+    Ranking_LoadPolicia();
+    Ranking_LoadLadrao();
 
     InitGame(); 
     

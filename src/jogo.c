@@ -33,7 +33,7 @@ void InitGame(void){
     policia.position = (Vector2){100, 100};
     ladrao.position = (Vector2){700, 350};
     
-    policia.speed = 150.0f;
+    policia.speed = 170.0f;
     ladrao.speed = 180.0f;
     gameTimer = INITIAL_TIME; // Inicializa/reseta o tempo
     gameResult = 0;           // Reseta o resultado
@@ -135,6 +135,12 @@ void UpdateGame(float dt){
             // Policial venceu (Captura)
             gameResult = 1; 
             printf("Ladrão Capturado! Fim de Jogo.\n");
+            // calcula score do vencedor e inicia entrada de nome
+            // policia: score proporcional à rapidez da captura
+            lastScore = (int)((INITIAL_TIME - gameTimer) * 10.0f);
+            // prepara buffer para entrada de nome
+            if (playerName) playerName[0] = '\0';
+            enteringName = 1;
         }
         
         // --- 1.4 LÓGICA DO CRONÔMETRO ---
@@ -146,14 +152,55 @@ void UpdateGame(float dt){
             // Ladrão venceu (Sobrevivência)
             gameResult = 0; 
             printf("Tempo esgotado! Ladrão Venceu!\n");
+            // calcula score do vencedor e inicia entrada de nome
+            lastScore = (int)(gameTimer * 10.0f);
+            if (playerName) playerName[0] = '\0';
+            enteringName = 1;
         }
         
     // 2. CHECAGEM DE ESTADO DE FIM DE JOGO
     } else if (currentScreen == END_GAME) {
-        // Lógica de Reinício
-        if (IsKeyPressed(KEY_ENTER)) {
-            InitGame(); 
-            currentScreen = GAMEPLAY;
+        // Entrada de nome enquanto estiver em END_GAME
+        if (enteringName) {
+            // coleta caracteres
+            int key = GetCharPressed();
+            while (key > 0) {
+                int len = (int)strlen(playerName);
+                if (key >= 32 && key <= 125 && len < 30) {
+                    playerName[len] = (char)key;
+                    playerName[len+1] = '\0';
+                }
+                key = GetCharPressed();
+            }
+            if (IsKeyPressed(KEY_BACKSPACE)) {
+                int len = (int)strlen(playerName);
+                if (len > 0) playerName[len-1] = '\0';
+            }
+            // Enter salva o nome; ESPAÇO salva como anônimo
+            if (IsKeyPressed(KEY_ENTER)) {
+                // se não digitou nome, salva como ANON
+                // Salva no ranking correto baseado em quem venceu
+                if (gameResult == 1) {
+                    Ranking_AddPolicia(playerName, lastScore);
+                } else {
+                    Ranking_AddLadrao(playerName, lastScore);
+                }
+                enteringName = 0;
+            } else if (IsKeyPressed(KEY_SPACE)) {
+                // Salva anônimo no ranking correto
+                if (gameResult == 1) {
+                    Ranking_AddPolicia(NULL, lastScore);
+                } else {
+                    Ranking_AddLadrao(NULL, lastScore);
+                }
+                enteringName = 0;
+            }
+        } else {
+            // Reinício padrão ao pressionar ENTER
+            if (IsKeyPressed(KEY_ENTER)) {
+                InitGame(); 
+                currentScreen = GAMEPLAY;
+            }
         }
     }
 }
@@ -234,6 +281,21 @@ void DrawGame(void){
                      GetScreenHeight() / 2 + 30, 
                      20, 
                      RAYWHITE);
+
+            // Se estiver coletando nome, desenha o campo
+            if (enteringName) {
+                const char* instr = "Digite seu nome e pressione ENTER (ou ESPACO para anon):";
+                int iw = MeasureText(instr, 18);
+                DrawText(instr, (GetScreenWidth() - iw)/2, GetScreenHeight()/2 + 70, 18, RAYWHITE);
+                // desenha conteúdo digitado
+                DrawText(playerName, (GetScreenWidth() - MeasureText(playerName, 20))/2, GetScreenHeight()/2 + 100, 20, LIGHTGRAY);
+            }
+
+            // Desenha ambos os rankings lado a lado
+            // Ranking do Policial (esquerda)
+            Ranking_DrawPolicia(50, 40);
+            // Ranking do Ladrão (direita)
+            Ranking_DrawLadrao(GetScreenWidth() - 260, 40);
         }
         
     EndDrawing();
