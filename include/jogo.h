@@ -17,6 +17,12 @@ typedef struct Character {
     float radius; //define o tamanho do personagem
     int role;
 }Character;
+
+typedef enum gamescreen {   //"struct simples " para definir os estados do jogo
+    GAMEPLAY =1,
+    END_GAME = 2,
+    
+}GameScreen;
 // Funções de inicialização
 void InitGame(void);
 
@@ -35,4 +41,8 @@ extern int gameMap[MAP_ROWS][MAP_COLS];
 
 extern Texture2D wallTexture; 
 extern Texture2D floorTexture;
+
+extern GameScreen currentScreen; //variavel para verificar o estao atual do jogo
+extern int gameResult;          // 1 se Policial vence, 0 se Ladrão vence (novo!)
+extern float gameTimer;        // cronômetro do jogo
 #endif
