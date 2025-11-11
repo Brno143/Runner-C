@@ -4,12 +4,22 @@
 #include "raylib.h"
 #include <stddef.h>
 
-#define TILE_SIZE 60
-#define MAP_ROWS 15 //linhas do mapa 
-#define MAP_COLS 20 //colunas do mapa 
+#define _TILE_SIZE_RUNTIME_NOTE 1 // TILE_SIZE is set at runtime in main.c
+#define MAP_ROWS 17 //linhas do mapa 
+#define MAP_COLS 30 //colunas do mapa 
 #define TILE_EMPTY 0 //0 para espaço vazio
 #define TILE_WALL 1 //1 para parede
+#define TILE_ITEM 2 //2 para item coletável
 #define MAX_POLICIAS 3 // Máximo de policiais simultâneos
+#define MAX_ITEMS 50 // Máximo de itens no mapa
+
+// ===== ITEM SYSTEM =====
+typedef struct Item {
+    Vector2 position;
+    int row;
+    int col;
+    int collected; // 0 = não coletado, 1 = coletado
+} Item;
 
 // ===== RANKING SYSTEM =====
 #define RANKING_SIZE 10
@@ -72,6 +82,10 @@ extern Character policias[MAX_POLICIAS]; // Array de policiais
 extern int numPolicias; // Número de policiais ativos (1-3)
 extern Character ladrao;
 
+extern Item items[MAX_ITEMS]; // Array de itens coletáveis
+extern int numItems; // Número de itens no mapa
+extern int itemsCollected; // Contador de itens coletados
+
 extern Texture2D texturaladrao;
 extern Texture2D texturapolicia;
 
@@ -79,6 +93,10 @@ extern int gameMap[MAP_ROWS][MAP_COLS];
 
 extern Texture2D wallTexture; 
 extern Texture2D floorTexture;
+
+extern int TILE_SIZE; // computed at startup to scale the maze to the monitor
+extern float SCALE_X; // horizontal drawing scale (screen / logical)
+extern float SCALE_Y; // vertical drawing scale (screen / logical)
 
 extern GameScreen currentScreen; //variavel para verificar o estao atual do jogo
 extern int gameResult;          // 1 se Policial vence, 0 se Ladrão vence

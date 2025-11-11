@@ -10,19 +10,23 @@
 
 // Mapa do jogo
 int gameMap[MAP_ROWS][MAP_COLS] = {
-    {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, // L0
-    {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1}, // L1
-    {1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 1}, // L2
-    {1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1}, // L3
-    {1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1}, // L4
-    {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}, // L5
-    {1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1}, // L6
-    {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}, // L7
-    {1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1}, // L8
-    {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1}, // L9
-    {1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 0, 0, 1}, // L10
-    {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}, // L11
-    {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, // L12
+    {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, // L0
+    {1, 2, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 0, 1, 0, 0, 2, 0, 0, 0, 0, 1}, // L1
+    {1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1}, // L2
+    {1, 0, 0, 2, 0, 0, 1, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 2, 0, 1, 0, 1}, // L3
+    {1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1}, // L4
+    {1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 1}, // L5
+    {1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1}, // L6
+    {1, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 1}, // L7
+    {1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1}, // L8
+    {1, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 2, 0, 1}, // L9
+    {1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 0, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1}, // L10
+    {1, 2, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 1}, // L11
+    {1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1}, // L12
+    {1, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 1}, // L13
+    {1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1}, // L14
+    {1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 2, 0, 1}, // L15
+    {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, // L16
 
 };
 
@@ -48,6 +52,26 @@ void InitGame(void){
             policias[i].playerIndex = i;
         } else {
             policias[i].active = 0;
+        }
+    }
+    
+    // Inicializa itens coletáveis
+    numItems = 0;
+    itemsCollected = 0;
+    for (int row = 0; row < MAP_ROWS; row++) {
+        for (int col = 0; col < MAP_COLS; col++) {
+            if (gameMap[row][col] == TILE_ITEM) {
+                if (numItems < MAX_ITEMS) {
+                    items[numItems].row = row;
+                    items[numItems].col = col;
+                    items[numItems].position = (Vector2){
+                        col * TILE_SIZE + TILE_SIZE / 2,
+                        row * TILE_SIZE + TILE_SIZE / 2
+                    };
+                    items[numItems].collected = 0;
+                    numItems++;
+                }
+            }
         }
     }
     
@@ -156,6 +180,18 @@ void UpdateGame(float dt){
             MoveCharacter(&policias[2], dt);
         }
         
+        // === COLETA DE ITENS ===
+        for (int i = 0; i < numItems; i++) {
+            if (!items[i].collected) {
+                float distance = Vector2Distance(ladrao.position, items[i].position);
+                if (distance < 25.0f) { // Raio de coleta
+                    items[i].collected = 1;
+                    itemsCollected++;
+                    printf("Item coletado! Total: %d/%d\n", itemsCollected, numItems);
+                }
+            }
+        }
+        
         // === DETECÇÃO DE CAPTURA ===
         for (int i = 0; i < numPolicias; i++){
             if (!policias[i].active) continue;
@@ -258,6 +294,15 @@ void DrawGame(void){
                 }
             }
 
+            // === DESENHAR ITENS COLETÁVEIS ===
+            for (int i = 0; i < numItems; i++) {
+                if (!items[i].collected) {
+                    // Desenha uma moeda/estrela dourada
+                    DrawCircle((int)items[i].position.x, (int)items[i].position.y, 10, GOLD);
+                    DrawCircle((int)items[i].position.x, (int)items[i].position.y, 7, YELLOW);
+                }
+            }
+
             // === DESENHAR LADRÃO ===
             DrawTexturePro(
                 texturaladrao, 
@@ -296,6 +341,10 @@ void DrawGame(void){
             char playersText[64];
             sprintf(playersText, "Policiais: %d | Ladrao: 1", numPolicias);
             DrawText(playersText, 10, 35, 18, BLACK);
+            
+            char itemsText[64];
+            sprintf(itemsText, "Itens: %d/%d", itemsCollected, numItems);
+            DrawText(itemsText, 10, 60, 18, GOLD);
             
         } else if (currentScreen == END_GAME) {
             // === TELA DE FIM ===
