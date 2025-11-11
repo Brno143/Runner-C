@@ -1,22 +1,24 @@
-// src/jogo.c - Versão Multiplayer (até 3 policiais + 1 ladrão)
-#include "jogo.h"
+// src/jogo.c - Versão com Trap Automática e Controles Corrigidos
+#include "../include/jogo.h"
 #include <stdio.h>
 #include <string.h>
 #include "raymath.h"
+#include <stdlib.h> 
 
 // Variáveis de Escala/Layout
 extern int TILE_SIZE; // Definido em main.c
 
 // Constantes de cor
-const Color parede = { 255, 255, 255, 255 }; // Cor do Chão: Branco (RAYWHITE original)
-const Color ULTRA_DARKBLUE = { 80, 80, 80, 255 }; // Cor da Parede: Cinza Escuro (DARKGRAY original)
+const Color parede = { 255, 255, 255, 255 }; 
+const Color ULTRA_DARKBLUE = { 80, 80, 80, 255 }; 
 
-#define radius ((float)TILE_SIZE / 2.0f) // Raio dinâmico baseado no TILE_SIZE (float)
-#define COLLISION_DISTANCE (float)TILE_SIZE * 0.9f // Distância de colisão entre jogadores
-#define ITEM_COLLECTION_RADIUS ((float)TILE_SIZE * 0.45f) // Raio de coleta para itens
+#define radius ((float)TILE_SIZE / 2.0f)
+#define COLLISION_DISTANCE (float)TILE_SIZE * 0.9f
+#define ITEM_COLLECTION_RADIUS ((float)TILE_SIZE * 0.45f) 
+#define POWERUP_COLLECTION_RADIUS ((float)TILE_SIZE * 0.5f) // Raio de coleta maior para poderes
 #define INITIAL_TIME 180.0f
 
-// Mapa do jogo (mantido o mapa 17x30 que você forneceu)
+// Mapa do jogo (mantido)
 int gameMap[MAP_ROWS][MAP_COLS] = {
     {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, 
     {1, 2, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 0, 1, 0, 0, 2, 0, 0, 0, 0, 1}, 
@@ -37,20 +39,34 @@ int gameMap[MAP_ROWS][MAP_COLS] = {
     {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, 
 };
 
-// Posições iniciais (DECLARADAS sem inicialização para evitar o erro de 'not constant')
+// Posições iniciais (DECLARADAS sem inicialização)
 static Vector2 policeStartPositions[MAX_POLICIAS]; 
 
+// Variáveis Globais PowerUp e Efeitos (Definidas aqui, extern em jogo.h)
+PowerUp powerups[MAX_POWERUPS];
+int numActivePowerups = 0;
+float powerupSpawnTimer = 0.0f;
+PlacedTrap currentTrap = {0};
+float boostTimer[MAX_POLICIAS + 1] = {0.0f}; 
+int characterState[MAX_POLICIAS + 1] = {0}; 
 
-// Helper: movimenta um personagem com colisão (Mantido, usando 'radius')
+
+// Helper: movimenta um personagem com colisão
 static void MoveCharacter(Character* ch, float dt){
     if (!ch->active) return;
+    
+    // VERIFICA SE ESTÁ IMOBILIZADO (characterState[index] == 1)
+    if (ch == &ladrao && characterState[0] == 1) return;
+    for (int i = 0; i < numPolicias; i++) {
+        if (ch == &policias[i] && characterState[i + 1] == 1) return;
+    }
     
     // Normaliza velocidade
     if ((ch->velocity.x != 0.0f) || (ch->velocity.y != 0.0f)) {
         ch->velocity = Vector2Normalize(ch->velocity);
     }
     
-    // Colisão X
+     // Colisão X
     if (ch->velocity.x != 0.0f) { 
         float futureX = ch->position.x + ch->velocity.x * ch->speed * dt;
         int checkSideX = (ch->velocity.x > 0) ? (int)(futureX + radius) : (int)(futureX - radius); 
@@ -83,10 +99,68 @@ static void MoveCharacter(Character* ch, float dt){
     ch->position.y = Clamp(ch->position.y, (float)radius, (float)GetScreenHeight() - (float)radius);
 }
 
+// Helper: Tenta spawnar um PowerUp em uma célula vazia
+static void TrySpawnPowerUp(int type) {
+    if (numActivePowerups >= MAX_POWERUPS) return;
+
+    int freeCells[MAP_ROWS * MAP_COLS][2];
+    int freeCount = 0;
+    
+    // 1. Encontrar células livres (não parede, não item, não armadilha ativa)
+    for (int row = 1; row < MAP_ROWS - 1; row++) {
+        for (int col = 1; col < MAP_COLS - 1; col++) {
+            if (gameMap[row][col] != TILE_WALL && gameMap[row][col] != TILE_ITEM) {
+                
+                // Verifica se já existe um powerup no local
+                int occupied = 0;
+                for (int i = 0; i < MAX_POWERUPS; i++) {
+                    if (powerups[i].active) {
+                        int p_row = (int)(powerups[i].position.y / TILE_SIZE);
+                        int p_col = (int)(powerups[i].position.x / TILE_SIZE);
+                        if (p_row == row && p_col == col) {
+                            occupied = 1;
+                            break;
+                        }
+                    }
+                }
+                if (occupied) continue;
+
+                freeCells[freeCount][0] = row;
+                freeCells[freeCount][1] = col;
+                freeCount++;
+            }
+        }
+    }
+
+    if (freeCount > 0) {
+        // 2. Escolher uma célula aleatória
+        int randomIndex = rand() % freeCount;
+        int row = freeCells[randomIndex][0];
+        int col = freeCells[randomIndex][1];
+        
+        // 3. Criar o PowerUp
+        int index = -1;
+        for (int i = 0; i < MAX_POWERUPS; i++) {
+            if (!powerups[i].active) {
+                index = i;
+                break;
+            }
+        }
+
+        if (index != -1) {
+            powerups[index].active = 1;
+            powerups[index].type = type;
+            powerups[index].position = (Vector2){
+                (float)col * TILE_SIZE + TILE_SIZE / 2.0f,
+                (float)row * TILE_SIZE + TILE_SIZE / 2.0f
+            };
+            numActivePowerups++;
+        }
+    } 
+}
+
 void InitGame(void){
     
-    // CORREÇÃO APLICADA: Calculamos as posições iniciais aqui,
-    // onde TILE_SIZE já tem um valor definido no runtime.
     float current_radius = (float)TILE_SIZE / 2.0f;
     
     policeStartPositions[0] = (Vector2){(float)2 * TILE_SIZE + current_radius, (float)1 * TILE_SIZE + current_radius}; // P1
@@ -98,10 +172,9 @@ void InitGame(void){
     ladrao.speed = 180.0f;
     ladrao.active = 1;
     
-    // Inicializa policiais baseado em numPolicias
+    // Inicializa policiais
     for (int i = 0; i < MAX_POLICIAS; i++){
         if (i < numPolicias){
-            // Atribuição da posição calculada acima
             policias[i].position = policeStartPositions[i]; 
             policias[i].speed = 170.0f;
             policias[i].active = 1;
@@ -111,7 +184,7 @@ void InitGame(void){
         }
     }
     
-    // Inicializa itens coletáveis
+    // Inicializa ITENS (mantido)
     numItems = 0;
     itemsCollected = 0;
     for (int row = 0; row < MAP_ROWS; row++) {
@@ -120,7 +193,6 @@ void InitGame(void){
                 if (numItems < MAX_ITEMS) {
                     items[numItems].row = row;
                     items[numItems].col = col;
-                    // Calcula a posição central com o TILE_SIZE ajustado
                     items[numItems].position = (Vector2){
                         (float)col * TILE_SIZE + TILE_SIZE / 2.0f,
                         (float)row * TILE_SIZE + TILE_SIZE / 2.0f
@@ -131,16 +203,23 @@ void InitGame(void){
             }
         }
     }
+
+    // === Inicializa POWERUPS/EFEITOS ===
+    powerupSpawnTimer = (float)GetRandomValue(4, 8); // INTERVALO DE POWERUP DIMINUÍDO (4-8 segundos)
+    numActivePowerups = 0;
+    currentTrap.active = 0;
+    for (int i = 0; i <= MAX_POLICIAS; i++) {
+        boostTimer[i] = 0.0f;
+        characterState[i] = 0; // Estado normal
+    }
     
     gameTimer = INITIAL_TIME;
     gameResult = 0;
     winnerPoliceIndex = -1;
-    printf("Jogo iniciado com %d policial(is)! Total de itens: %d\n", numPolicias, numItems);
 }
 
 void UpdateGame(float dt){
     if (currentScreen == MENU) {
-        // Lógica do MENU
         if (IsKeyPressed(KEY_ONE)) {
             numPolicias = 1;
             InitGame();
@@ -157,45 +236,168 @@ void UpdateGame(float dt){
         
     } else if (currentScreen == GAMEPLAY) {
         
-        // === MOVIMENTOS LADRÃO (WASD) ===
+        // === GESTÃO DO TEMPORIZADOR DE SPAWN DE POWERUP ===
+        powerupSpawnTimer -= dt;
+        if (powerupSpawnTimer <= 0.0f) {
+            // Tenta spawnar um dos 3 tipos aleatoriamente
+            int randomType = GetRandomValue(POWERUP_BOOST, POWERUP_TRAP); 
+            TrySpawnPowerUp(randomType);
+            powerupSpawnTimer = (float)GetRandomValue(4, 8); // INTERVALO DE POWERUP DIMINUÍDO (4-8 segundos)
+        }
+
+        // === MOVIMENTOS E GESTÃO DE EFEITOS ===
+        
+        // Ladrão (Índice 0)
         ladrao.velocity = (Vector2){0.0f, 0.0f};
         if(IsKeyDown(KEY_W)) ladrao.velocity.y -= 1.0f;
         if(IsKeyDown(KEY_S)) ladrao.velocity.y += 1.0f;
         if(IsKeyDown(KEY_A)) ladrao.velocity.x -= 1.0f;
         if(IsKeyDown(KEY_D)) ladrao.velocity.x += 1.0f;
+        
+        // Ajuste de velocidade e tempo de efeito (Ladrão - Índice 0)
+        ladrao.speed = 180.0f;
+        if (boostTimer[0] > 0.0f) {
+            ladrao.speed = 280.0f; // Boost ativo
+            boostTimer[0] -= dt;
+        }
+        // Tempo de STUN do Ladrão (se for 1)
+        if (characterState[0] == 1) { 
+             ladrao.speed = 0.0f;
+             boostTimer[0] -= dt;
+             if (boostTimer[0] <= 0.0f) characterState[0] = 0;
+        }
+        
+        // Lógica de STUN AURA (POWERUP_STUN_BOMB)
+        if (characterState[0] == 2) { // Se o ladrão tem o poder de STUN AURA ATIVO
+             if (boostTimer[0] <= 0.0f) { // Se o tempo da aura acabar
+                 characterState[0] = 0; // Desativa a aura
+             } else {
+                 // Verifica se atinge algum policial dentro do raio da aura
+                 for (int i = 0; i < numPolicias; i++) {
+                    float distance = Vector2Distance(ladrao.position, policias[i].position);
+                    if (policias[i].active && distance < (float)TILE_SIZE * 1.5f) { // Alcance da aura
+                        if (characterState[i + 1] == 0) { // Se o policial não estiver já stunado
+                            characterState[i + 1] = 1; // Policial atordoado
+                            boostTimer[i + 1] = POWERUP_DURATION_STUN; // Aplica o stun (3s)
+                            
+                            // Gasta o poder na primeira ativação de stun
+                            characterState[0] = 0; 
+                            boostTimer[0] = 0.0f; 
+                            break; // Sai do loop após atordoar 1 policial
+                        }
+                    }
+                 }
+             }
+        }
+
         MoveCharacter(&ladrao, dt);
         
-        // === MOVIMENTOS POLICIAIS ===
+        // Policiais (Índices 1, 2, 3 no array characterState)
+        for (int i = 0; i < numPolicias; i++) {
+            Character* p = &policias[i];
+            
+            // Ajuste de velocidade e tempo de efeito (Policiais - Índice i+1)
+            p->speed = 170.0f;
+            if (boostTimer[i + 1] > 0.0f) {
+                // Policial pode ter BOOST ou estar STUNNED. Se estiver STUNNED (state 1), a velocidade é 0.
+                if (characterState[i + 1] == 0) {
+                    p->speed = 270.0f; // Boost ativo
+                }
+                boostTimer[i + 1] -= dt;
+            } 
+            
+            // Tempo de STUN do Policial (se for 1)
+            if (characterState[i + 1] == 1) { 
+                p->speed = 0.0f; // Imobilizado
+                // O timer é controlado pelo boostTimer[i+1]
+                if (boostTimer[i + 1] <= 0.0f) characterState[i + 1] = 0; // Fim do stun
+            }
+            
+            p->velocity = (Vector2){0.0f, 0.0f};
+            // Controles dos Policiais (mantidos)
+            if (i == 0) {
+                if (IsKeyDown(KEY_UP)) p->velocity.y -= 1.0f; 
+                if (IsKeyDown(KEY_DOWN)) p->velocity.y += 1.0f;
+                if (IsKeyDown(KEY_LEFT)) p->velocity.x -= 1.0f;
+                if (IsKeyDown(KEY_RIGHT)) p->velocity.x += 1.0f;
+            } else if (i == 1) {
+                if (IsKeyDown(KEY_I)) p->velocity.y -= 1.0f; 
+                if (IsKeyDown(KEY_K)) p->velocity.y += 1.0f;
+                if (IsKeyDown(KEY_J)) p->velocity.x -= 1.0f;
+                if (IsKeyDown(KEY_L)) p->velocity.x += 1.0f;
+            } else if (i == 2) {
+                if (IsKeyDown(KEY_T)) p->velocity.y -= 1.0f; 
+                if (IsKeyDown(KEY_G)) p->velocity.y += 1.0f;
+                if (IsKeyDown(KEY_F)) p->velocity.x -= 1.0f;
+                if (IsKeyDown(KEY_H)) p->velocity.x += 1.0f;
+            }
+
+            MoveCharacter(p, dt);
+        }
         
-        // Policial 1 (SETAS)
-        if (policias[0].active) {
-            policias[0].velocity = (Vector2){0.0f, 0.0f};
-            if (IsKeyDown(KEY_UP)) policias[0].velocity.y -= 1.0f; 
-            if (IsKeyDown(KEY_DOWN)) policias[0].velocity.y += 1.0f;
-            if (IsKeyDown(KEY_LEFT)) policias[0].velocity.x -= 1.0f;
-            if (IsKeyDown(KEY_RIGHT)) policias[0].velocity.x += 1.0f;
-            MoveCharacter(&policias[0], dt);
+        // === GESTÃO DA ARMADILHA (TRAP) ===
+        if (currentTrap.active) {
+            // Armadilha fica ativa até ser acionada.
+            // Checa colisão do Ladrão com a Armadilha
+            float distance = Vector2Distance(ladrao.position, currentTrap.position);
+            if (distance < COLLISION_DISTANCE) {
+                characterState[0] = 1; // Ladrão imobilizado
+                boostTimer[0] = POWERUP_DURATION_STUN; // Reutiliza timer para stun (3s)
+                currentTrap.active = 0; // Armadilha ativada/gasta
+            }
         }
-        // Policial 2 (IJKL)
-        if (numPolicias >= 2 && policias[1].active) {
-            policias[1].velocity = (Vector2){0.0f, 0.0f};
-            if (IsKeyDown(KEY_I)) policias[1].velocity.y -= 1.0f; 
-            if (IsKeyDown(KEY_K)) policias[1].velocity.y += 1.0f;
-            if (IsKeyDown(KEY_J)) policias[1].velocity.x -= 1.0f;
-            if (IsKeyDown(KEY_L)) policias[1].velocity.x += 1.0f;
-            MoveCharacter(&policias[1], dt);
-        }
-        // Policial 3 (TFGH)
-        if (numPolicias >= 3 && policias[2].active) {
-            policias[2].velocity = (Vector2){0.0f, 0.0f};
-            if (IsKeyDown(KEY_T)) policias[2].velocity.y -= 1.0f; 
-            if (IsKeyDown(KEY_G)) policias[2].velocity.y += 1.0f;
-            if (IsKeyDown(KEY_F)) policias[2].velocity.x -= 1.0f;
-            if (IsKeyDown(KEY_H)) policias[2].velocity.x += 1.0f;
-            MoveCharacter(&policias[2], dt);
+
+        // === COLETA DE POWERUPS ===
+        for (int i = 0; i < MAX_POWERUPS; i++) {
+            if (powerups[i].active) {
+                int collected = 0;
+                int character_index = -1; // 0=Ladrao, 1,2,3=Policiais
+                
+                // 1. Ladrão coleta (index 0)
+                if (Vector2Distance(ladrao.position, powerups[i].position) < POWERUP_COLLECTION_RADIUS) {
+                    character_index = 0;
+                    collected = 1;
+                }
+                
+                // 2. Policiais coletam (index j+1)
+                for (int j = 0; j < numPolicias; j++) {
+                    if (!policias[j].active) continue;
+                    if (Vector2Distance(policias[j].position, powerups[i].position) < POWERUP_COLLECTION_RADIUS) {
+                        character_index = j + 1;
+                        collected = 1;
+                        break;
+                    }
+                }
+
+                if (collected) {
+                    if (powerups[i].type == POWERUP_BOOST) {
+                        boostTimer[character_index] = POWERUP_DURATION_BOOST; 
+                    } else if (powerups[i].type == POWERUP_STUN_BOMB && character_index == 0) { 
+                        // Ladrão coleta Stun Aura, ativa-o por 5 segundos
+                        characterState[0] = 2; // Estado "Stun Aura Pronto/Ativo"
+                        boostTimer[0] = POWERUP_DURATION_BOOST; // Usa 5s de duração (mesmo tempo do speed)
+                    } else if (powerups[i].type == POWERUP_TRAP && character_index == 1) { 
+                        // MUDANÇA: Ativa a trap imediatamente!
+                        currentTrap.position = powerups[i].position; // POLICIAL 1: Guarda a POSIÇÃO DO POWERUP
+                        currentTrap.active = 1; // Armadilha colocada no chão AGORA
+                        characterState[1] = 0; // Estado normal (não precisa de estado "Trap Ready")
+                    } else if (powerups[i].type == POWERUP_TRAP && character_index > 1) {
+                        // Policiais 2 e 3 não coletam a TRAP (para simplificar)
+                        collected = 0; 
+                    } else if (powerups[i].type == POWERUP_STUN_BOMB && character_index > 0) {
+                        // Policiais não coletam STUN AURA (para simplificar)
+                        collected = 0;
+                    }
+
+                    if (collected) {
+                         powerups[i].active = 0;
+                         numActivePowerups--;
+                    }
+                }
+            }
         }
         
-        // === COLETA DE ITENS E VITÓRIA DO LADRÃO ===
+        // === COLETA DE ITENS (mantido) ===
         for (int i = 0; i < numItems; i++) {
             if (!items[i].collected) {
                 float distance = Vector2Distance(ladrao.position, items[i].position);
@@ -208,7 +410,7 @@ void UpdateGame(float dt){
                         gameResult = 0; 
                         winnerPoliceIndex = -1;
                         lastScore = numItems * 100 + (int)(gameTimer * 5.0f); 
-                        playerName[0] = '\0'; 
+                        playerName[0] = '\0';
                         enteringName = 1;
                         return;
                     }
@@ -216,12 +418,13 @@ void UpdateGame(float dt){
             }
         }
         
-        // === DETECÇÃO DE CAPTURA (Vitória do Policial) ===
+        // === DETECÇÃO DE CAPTURA (mantido) ===
         for (int i = 0; i < numPolicias; i++){
             if (!policias[i].active) continue;
             
             float distance = Vector2Distance(ladrao.position, policias[i].position);
-            if (distance < COLLISION_DISTANCE) {
+            // Captura só acontece se nenhum dos dois estiver atordoado
+            if (distance < COLLISION_DISTANCE && characterState[0] == 0 && characterState[i+1] == 0) {
                 currentScreen = END_GAME;
                 gameResult = 1;
                 winnerPoliceIndex = i;
@@ -232,7 +435,7 @@ void UpdateGame(float dt){
             }
         }
         
-        // === CRONÔMETRO (Vitória do Ladrão por Tempo) ===
+        // === CRONÔMETRO (mantido) ===
         gameTimer -= dt;
         if (gameTimer <= 0.0f) {
             gameTimer = 0.0f;
@@ -245,7 +448,6 @@ void UpdateGame(float dt){
         }
         
     } else if (currentScreen == END_GAME) {
-        // Lógica de Entrada de Nome
         if (enteringName) {
             int key = GetCharPressed();
             while (key > 0) {
@@ -289,7 +491,6 @@ void DrawGame(void){
         ClearBackground(BLACK);
         
         if (currentScreen == MENU) {
-            // Desenho do MENU
             DrawText("POLICIA vs LADRAO", GetScreenWidth()/2 - 200, 150, 40, GOLD);
             DrawText("Selecione o numero de jogadores:", GetScreenWidth()/2 - 250, 300, 25, RAYWHITE);
             
@@ -298,10 +499,14 @@ void DrawGame(void){
             DrawText("[3] - 4 Jogadores (3 Policiais vs 1 Ladrao)", GetScreenWidth()/2 - 280, 480, 22, GREEN);
             
             DrawText("CONTROLES:", GetScreenWidth()/2 - 100, 580, 20, YELLOW);
-            DrawText("Ladrao: WASD", 100, 630, 18, RAYWHITE);
-            DrawText("Policial 1: SETAS", 100, 660, 18, RAYWHITE);
-            DrawText("Policial 2: IJKL", 400, 660, 18, RAYWHITE);
-            DrawText("Policial 3: TFGH", 700, 660, 18, RAYWHITE);
+            
+            // LINHA CORRIGIDA
+            DrawText("Ladrao: WASD | Especial: STUN AURA (Ativado ao coletar o item - 5s de efeito)", 100, 630, 18, RAYWHITE);
+            
+            // LINHAS CORRIGIDAS/SEPARADAS
+            DrawText("Policial 1: SETAS | Especial: TRAP (Ativada no chão ao coletar o item)", 100, 660, 18, RAYWHITE);
+            DrawText("Policial 2: IJKL", 100, 690, 18, RAYWHITE); // Adicionado Policial 2 na linha correta
+            DrawText("Policial 3: TFGH", 100, 720, 18, RAYWHITE); // Ajustado Policial 3
             
         } else if (currentScreen == GAMEPLAY) {
             // === DESENHAR O MAPA ===
@@ -323,33 +528,69 @@ void DrawGame(void){
                     DrawCircle((int)items[i].position.x, (int)items[i].position.y, (float)TILE_SIZE * 0.10f, YELLOW);
                 }
             }
+            
+            // === DESENHAR POWERUPS ===
+            for (int i = 0; i < MAX_POWERUPS; i++) {
+                if (powerups[i].active) {
+                    Color color = RAYWHITE;
+                    char symbol = '?';
+                    if (powerups[i].type == POWERUP_BOOST) { color = LIME; symbol = 'S'; } 
+                    else if (powerups[i].type == POWERUP_STUN_BOMB) { color = BLUE; symbol = 'A'; } // 'A' de Aura
+                    else if (powerups[i].type == POWERUP_TRAP) { color = RED; symbol = 'T'; } 
+                    
+                    DrawCircle((int)powerups[i].position.x, (int)powerups[i].position.y, (float)TILE_SIZE * 0.2f, color);
+                    DrawText(TextFormat("%c", symbol), (int)powerups[i].position.x - 5, (int)powerups[i].position.y - 10, 20, BLACK);
+                }
+            }
+            
+            // === DESENHAR ARMADILHA COLOCADA ===
+            if (currentTrap.active) {
+                DrawCircleV(currentTrap.position, (float)TILE_SIZE * 0.3f, Fade(RED, 0.7f));
+                DrawText("TRAP", (int)currentTrap.position.x - 20, (int)currentTrap.position.y - 10, 15, BLACK);
+            }
 
             // === DESENHAR LADRÃO E POLICIAIS ===
             float spriteSize = (float)TILE_SIZE;
             float spriteCenter = (float)TILE_SIZE / 2.0f;
             
             // LADRÃO
+            Color ladraoTint = WHITE;
+            if (boostTimer[0] > 0.0f) ladraoTint = GREEN; // Boost ativo
+            if (characterState[0] == 1) ladraoTint = PURPLE; // Stunned
+            
+            // Desenhar Aura se o poder do ladrão estiver ativo (Stun Aura)
+            if (characterState[0] == 2) {
+                float ringSize = spriteCenter + 5.0f + (fmodf(GetTime() * 10, 1.0f) * 10.0f);
+                Color auraColor = Fade(BLUE, 0.5f);
+                DrawRing(ladrao.position, spriteCenter + 5.0f, ringSize, 0, 360, 16, auraColor);
+                DrawText(TextFormat("STUN AURA: %.1fs", boostTimer[0]), (int)ladrao.position.x - 60, (int)ladrao.position.y - 60, 15, BLUE);
+            }
+
             DrawTexturePro(
                 texturaladrao, 
                 (Rectangle){ 0, 0, texturaladrao.width, texturaladrao.height },
                 (Rectangle){ ladrao.position.x, ladrao.position.y, spriteSize, spriteSize },
                 (Vector2){ spriteCenter, spriteCenter },
                 0.0f, 
-                WHITE 
+                ladraoTint 
             );
-
+            
             // POLICIAIS
             Color policeColors[] = {BLUE, RED, PURPLE}; 
             for (int i = 0; i < numPolicias; i++){
                 if (!policias[i].active) continue;
                 
+                Color pTint = policeColors[i];
+                if (boostTimer[i+1] > 0.0f) pTint = GREEN;
+                if (characterState[i+1] == 1) pTint = PURPLE; // Imobilizado
+
                 DrawTexturePro(
                     texturapolicia, 
                     (Rectangle){ 0, 0, texturapolicia.width, texturapolicia.height }, 
                     (Rectangle){ policias[i].position.x, policias[i].position.y, spriteSize, spriteSize },
                     (Vector2){ spriteCenter, spriteCenter }, 
                     0.0f, 
-                    policeColors[i]
+                    pTint
                 );
                 
                 char label[8];
@@ -370,8 +611,9 @@ void DrawGame(void){
             sprintf(itemsText, "Itens: %d/%d", itemsCollected, numItems);
             DrawText(itemsText, 10, 60, 18, GOLD); 
             
+            DrawText(TextFormat("Próximo PowerUp em: %.1fs", powerupSpawnTimer), GetScreenWidth() - 300, 10, 18, RAYWHITE);
+            
         } else if (currentScreen == END_GAME) {
-            // === TELA DE FIM ===
             const char* message;
             Color messageColor;
             char finalMessage[128] = "";

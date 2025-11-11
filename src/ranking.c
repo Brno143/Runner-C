@@ -152,4 +152,3 @@ void Ranking_DrawLadrao(int x, int y){
         DrawText("(vazio)", x, y + 30, 18, RAYWHITE);
     }
 }
-
