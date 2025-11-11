@@ -6,91 +6,40 @@
 
 // Variáveis de Escala/Layout
 extern int TILE_SIZE; // Definido em main.c
-extern float SCALE_X;
-extern float SCALE_Y;
 
-#define radius (TILE_SIZE / 2) // Raio dinâmico baseado no TILE_SIZE
-#define COLLISION_DISTANCE (radius * 2)
+// Constantes de cor
+const Color parede = { 255, 255, 255, 255 }; // Cor do Chão: Branco (RAYWHITE original)
+const Color ULTRA_DARKBLUE = { 80, 80, 80, 255 }; // Cor da Parede: Cinza Escuro (DARKGRAY original)
+
+#define radius ((float)TILE_SIZE / 2.0f) // Raio dinâmico baseado no TILE_SIZE (float)
+#define COLLISION_DISTANCE (float)TILE_SIZE * 0.9f // Distância de colisão entre jogadores
+#define ITEM_COLLECTION_RADIUS ((float)TILE_SIZE * 0.45f) // Raio de coleta para itens
 #define INITIAL_TIME 180.0f
 
 // Mapa do jogo (mantido o mapa 17x30 que você forneceu)
 int gameMap[MAP_ROWS][MAP_COLS] = {
-    {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, // L0
-    {1, 2, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 0, 1, 0, 0, 2, 0, 0, 0, 0, 1}, // L1
-    {1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1}, // L2
-    {1, 0, 0, 2, 0, 0, 1, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 2, 0, 1, 0, 1}, // L3
-    {1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1}, // L4
-    {1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 1}, // L5
-    {1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1}, // L6
-    {1, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 1}, // L7
-    {1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1}, // L8
-    {1, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 2, 0, 1}, // L9
-    {1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 0, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1}, // L10
-    {1, 2, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 1}, // L11
-    {1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1}, // L12
-    {1, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 1}, // L13
-    {1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1}, // L14
-    {1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 2, 0, 1}, // L15
-    {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, // L16
+    {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, 
+    {1, 2, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 0, 1, 0, 0, 2, 0, 0, 0, 0, 1}, 
+    {1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1}, 
+    {1, 0, 0, 2, 0, 0, 1, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 2, 0, 1, 0, 1}, 
+    {1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1}, 
+    {1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 1}, 
+    {1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1}, 
+    {1, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 1}, 
+    {1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1}, 
+    {1, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 2, 0, 1}, 
+    {1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 0, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1}, 
+    {1, 2, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 1}, 
+    {1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1}, 
+    {1, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 1}, 
+    {1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1}, 
+    {1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 2, 0, 1}, 
+    {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, 
 };
 
-// Posições iniciais para cada policial
-static Vector2 policeStartPositions[MAX_POLICIAS] = {
-    {100, 100}, 
-    {1100, 100},
-    {100, 800} 
-};
+// Posições iniciais (DECLARADAS sem inicialização para evitar o erro de 'not constant')
+static Vector2 policeStartPositions[MAX_POLICIAS]; 
 
-// Helper: Implementação de MoveCharacter (mantida a lógica de colisão original, ajustada para usar 'radius')
-static void MoveCharacter(Character* ch, float dt);
-
-void InitGame(void){
-    // Inicializa ladrão
-    ladrao.position = (Vector2){700.0f, 450.0f};
-    ladrao.speed = 180.0f;
-    ladrao.active = 1;
-    
-    // Inicializa policiais baseado em numPolicias
-    for (int i = 0; i < MAX_POLICIAS; i++){
-        if (i < numPolicias){
-            // Ajusta a posição inicial para o novo TILE_SIZE (exemplo: de 100/100 para a posição real do grid)
-            // Assumimos que as posições originais eram em tiles de tamanho 30.
-            policias[i].position.x = policeStartPositions[i].x / 30.0f * (float)radius;
-            policias[i].position.y = policeStartPositions[i].y / 30.0f * (float)radius;
-            policias[i].speed = 170.0f;
-            policias[i].active = 1;
-            policias[i].playerIndex = i;
-        } else {
-            policias[i].active = 0;
-        }
-    }
-    
-    // === REVISADO: Inicializa itens coletáveis e faz a contagem total ===
-    numItems = 0;
-    itemsCollected = 0;
-    for (int row = 0; row < MAP_ROWS; row++) {
-        for (int col = 0; col < MAP_COLS; col++) {
-            if (gameMap[row][col] == TILE_ITEM) {
-                if (numItems < MAX_ITEMS) {
-                    items[numItems].row = row;
-                    items[numItems].col = col;
-                    // Calcula a posição central com o TILE_SIZE ajustado
-                    items[numItems].position = (Vector2){
-                        (float)col * TILE_SIZE + TILE_SIZE / 2.0f,
-                        (float)row * TILE_SIZE + TILE_SIZE / 2.0f
-                    };
-                    items[numItems].collected = 0;
-                    numItems++;
-                }
-            }
-        }
-    }
-    
-    gameTimer = INITIAL_TIME;
-    gameResult = 0;
-    winnerPoliceIndex = -1;
-    printf("Jogo iniciado com %d policial(is)! Total de itens: %d\n", numPolicias, numItems);
-}
 
 // Helper: movimenta um personagem com colisão (Mantido, usando 'radius')
 static void MoveCharacter(Character* ch, float dt){
@@ -130,13 +79,68 @@ static void MoveCharacter(Character* ch, float dt){
     } 
     
     // Clamp bordas
-    ch->position.x = Clamp(ch->position.x, (float)radius, GetScreenWidth() - (float)radius); 
-    ch->position.y = Clamp(ch->position.y, (float)radius, GetScreenHeight() - (float)radius);
+    ch->position.x = Clamp(ch->position.x, (float)radius, (float)GetScreenWidth() - (float)radius); 
+    ch->position.y = Clamp(ch->position.y, (float)radius, (float)GetScreenHeight() - (float)radius);
+}
+
+void InitGame(void){
+    
+    // CORREÇÃO APLICADA: Calculamos as posições iniciais aqui,
+    // onde TILE_SIZE já tem um valor definido no runtime.
+    float current_radius = (float)TILE_SIZE / 2.0f;
+    
+    policeStartPositions[0] = (Vector2){(float)2 * TILE_SIZE + current_radius, (float)1 * TILE_SIZE + current_radius}; // P1
+    policeStartPositions[1] = (Vector2){(float)MAP_COLS * TILE_SIZE - (2 * TILE_SIZE) - current_radius, (float)1 * TILE_SIZE + current_radius}; // P2
+    policeStartPositions[2] = (Vector2){(float)2 * TILE_SIZE + current_radius, (float)MAP_ROWS * TILE_SIZE - (2 * TILE_SIZE) - current_radius}; // P3
+
+    // Inicializa ladrão: Posição central do mapa.
+    ladrao.position = (Vector2){(float)MAP_COLS * TILE_SIZE / 2.0f, (float)MAP_ROWS * TILE_SIZE / 2.0f};
+    ladrao.speed = 180.0f;
+    ladrao.active = 1;
+    
+    // Inicializa policiais baseado em numPolicias
+    for (int i = 0; i < MAX_POLICIAS; i++){
+        if (i < numPolicias){
+            // Atribuição da posição calculada acima
+            policias[i].position = policeStartPositions[i]; 
+            policias[i].speed = 170.0f;
+            policias[i].active = 1;
+            policias[i].playerIndex = i;
+        } else {
+            policias[i].active = 0;
+        }
+    }
+    
+    // Inicializa itens coletáveis
+    numItems = 0;
+    itemsCollected = 0;
+    for (int row = 0; row < MAP_ROWS; row++) {
+        for (int col = 0; col < MAP_COLS; col++) {
+            if (gameMap[row][col] == TILE_ITEM) {
+                if (numItems < MAX_ITEMS) {
+                    items[numItems].row = row;
+                    items[numItems].col = col;
+                    // Calcula a posição central com o TILE_SIZE ajustado
+                    items[numItems].position = (Vector2){
+                        (float)col * TILE_SIZE + TILE_SIZE / 2.0f,
+                        (float)row * TILE_SIZE + TILE_SIZE / 2.0f
+                    };
+                    items[numItems].collected = 0;
+                    numItems++;
+                }
+            }
+        }
+    }
+    
+    gameTimer = INITIAL_TIME;
+    gameResult = 0;
+    winnerPoliceIndex = -1;
+    printf("Jogo iniciado com %d policial(is)! Total de itens: %d\n", numPolicias, numItems);
 }
 
 void UpdateGame(float dt){
     if (currentScreen == MENU) {
-        // ... (lógica do MENU mantida) ...
+        // Lógica do MENU
         if (IsKeyPressed(KEY_ONE)) {
             numPolicias = 1;
             InitGame();
@@ -153,7 +157,7 @@ void UpdateGame(float dt){
         
     } else if (currentScreen == GAMEPLAY) {
         
-        // === MOVIMENTOS (MANTIDO) ===
+        // === MOVIMENTOS LADRÃO (WASD) ===
         ladrao.velocity = (Vector2){0.0f, 0.0f};
         if(IsKeyDown(KEY_W)) ladrao.velocity.y -= 1.0f;
         if(IsKeyDown(KEY_S)) ladrao.velocity.y += 1.0f;
@@ -161,7 +165,9 @@ void UpdateGame(float dt){
         if(IsKeyDown(KEY_D)) ladrao.velocity.x += 1.0f;
         MoveCharacter(&ladrao, dt);
         
-        // Policiais 1, 2, 3 (mantido)
+        // === MOVIMENTOS POLICIAIS ===
+        
+        // Policial 1 (SETAS)
         if (policias[0].active) {
             policias[0].velocity = (Vector2){0.0f, 0.0f};
             if (IsKeyDown(KEY_UP)) policias[0].velocity.y -= 1.0f; 
@@ -170,6 +176,7 @@ void UpdateGame(float dt){
             if (IsKeyDown(KEY_RIGHT)) policias[0].velocity.x += 1.0f;
             MoveCharacter(&policias[0], dt);
         }
+        // Policial 2 (IJKL)
         if (numPolicias >= 2 && policias[1].active) {
             policias[1].velocity = (Vector2){0.0f, 0.0f};
             if (IsKeyDown(KEY_I)) policias[1].velocity.y -= 1.0f; 
@@ -178,6 +185,7 @@ void UpdateGame(float dt){
             if (IsKeyDown(KEY_L)) policias[1].velocity.x += 1.0f;
             MoveCharacter(&policias[1], dt);
         }
+        // Policial 3 (TFGH)
         if (numPolicias >= 3 && policias[2].active) {
             policias[2].velocity = (Vector2){0.0f, 0.0f};
             if (IsKeyDown(KEY_T)) policias[2].velocity.y -= 1.0f; 
@@ -187,33 +195,28 @@ void UpdateGame(float dt){
             MoveCharacter(&policias[2], dt);
         }
         
-        // === COLETA DE ITENS (REVISADO com Condição de Vitória) ===
+        // === COLETA DE ITENS E VITÓRIA DO LADRÃO ===
         for (int i = 0; i < numItems; i++) {
             if (!items[i].collected) {
                 float distance = Vector2Distance(ladrao.position, items[i].position);
-                // Raio de coleta ajustado dinamicamente (metade do TILE_SIZE)
-                if (distance < (float)TILE_SIZE * 0.45f) { 
+                if (distance < ITEM_COLLECTION_RADIUS) { 
                     items[i].collected = 1;
                     itemsCollected++;
                     
-                    // Condição de vitória do Ladrão: Coletou TUDO
                     if (itemsCollected >= numItems) {
                         currentScreen = END_GAME;
-                        gameResult = 0; // Ladrão venceu (0)
+                        gameResult = 0; 
                         winnerPoliceIndex = -1;
-                        // Score: Bônus por coletar tudo (100 por item) + bônus de tempo restante
                         lastScore = numItems * 100 + (int)(gameTimer * 5.0f); 
-                        if (playerName) playerName[0] = '\0';
+                        playerName[0] = '\0'; 
                         enteringName = 1;
-                        printf("Ladrão venceu coletando todos os itens!\n");
                         return;
                     }
-                    printf("Item coletado! Total: %d/%d\n", itemsCollected, numItems);
                 }
             }
         }
         
-        // === DETECÇÃO DE CAPTURA (MANTIDO) ===
+        // === DETECÇÃO DE CAPTURA (Vitória do Policial) ===
         for (int i = 0; i < numPolicias; i++){
             if (!policias[i].active) continue;
             
@@ -223,29 +226,26 @@ void UpdateGame(float dt){
                 gameResult = 1;
                 winnerPoliceIndex = i;
                 lastScore = (int)((INITIAL_TIME - gameTimer) * 10.0f);
-                if (playerName) playerName[0] = '\0';
+                playerName[0] = '\0'; 
                 enteringName = 1;
-                printf("Policial %d capturou o ladrão!\n", i+1);
                 return;
             }
         }
         
-        // === CRONÔMETRO (MANTIDO, pontuação ajustada) ===
+        // === CRONÔMETRO (Vitória do Ladrão por Tempo) ===
         gameTimer -= dt;
         if (gameTimer <= 0.0f) {
             gameTimer = 0.0f;
             currentScreen = END_GAME;
             gameResult = 0;
             winnerPoliceIndex = -1;
-            // Score do Ladrão: Sobreviveu (score base) + (itens coletados * 50)
             lastScore = (int)(INITIAL_TIME * 10.0f) + (itemsCollected * 50); 
-            if (playerName) playerName[0] = '\0';
+            playerName[0] = '\0'; 
             enteringName = 1;
-            printf("Tempo esgotado! Ladrão venceu!\n");
         }
         
     } else if (currentScreen == END_GAME) {
-        // ... (lógica END_GAME mantida) ...
+        // Lógica de Entrada de Nome
         if (enteringName) {
             int key = GetCharPressed();
             while (key > 0) {
@@ -289,7 +289,7 @@ void DrawGame(void){
         ClearBackground(BLACK);
         
         if (currentScreen == MENU) {
-            // ... (Desenho do MENU mantido) ...
+            // Desenho do MENU
             DrawText("POLICIA vs LADRAO", GetScreenWidth()/2 - 200, 150, 40, GOLD);
             DrawText("Selecione o numero de jogadores:", GetScreenWidth()/2 - 250, 300, 25, RAYWHITE);
             
@@ -309,9 +309,9 @@ void DrawGame(void){
                 for (int col = 0; col < MAP_COLS; col++) {
                     Rectangle destRec = {(float)col * TILE_SIZE, (float)row * TILE_SIZE, (float)TILE_SIZE, (float)TILE_SIZE};
                     if (gameMap[row][col] == TILE_WALL) {
-                        DrawRectangleRec(destRec, DARKGRAY); 
+                        DrawRectangleRec(destRec, ULTRA_DARKBLUE); 
                     } else {
-                        DrawRectangleRec(destRec, RAYWHITE); 
+                        DrawRectangleRec(destRec, parede); 
                     }
                 }
             }
@@ -319,13 +319,12 @@ void DrawGame(void){
             // === DESENHAR ITENS COLETÁVEIS ===
             for (int i = 0; i < numItems; i++) {
                 if (!items[i].collected) {
-                    // Desenha a moeda/item no centro do tile
                     DrawCircle((int)items[i].position.x, (int)items[i].position.y, (float)TILE_SIZE * 0.15f, GOLD);
                     DrawCircle((int)items[i].position.x, (int)items[i].position.y, (float)TILE_SIZE * 0.10f, YELLOW);
                 }
             }
 
-            // === DESENHAR LADRÃO E POLICIAIS (Ajuste o tamanho do sprite para o TILE_SIZE dinâmico) ===
+            // === DESENHAR LADRÃO E POLICIAIS ===
             float spriteSize = (float)TILE_SIZE;
             float spriteCenter = (float)TILE_SIZE / 2.0f;
             
@@ -353,7 +352,6 @@ void DrawGame(void){
                     policeColors[i]
                 );
                 
-                // Número do policial
                 char label[8];
                 sprintf(label, "P%d", i+1);
                 DrawText(label, (int)policias[i].position.x - 10, (int)policias[i].position.y - 45, 20, policeColors[i]);
@@ -370,15 +368,14 @@ void DrawGame(void){
             
             char itemsText[64];
             sprintf(itemsText, "Itens: %d/%d", itemsCollected, numItems);
-            DrawText(itemsText, 10, 60, 18, GOLD); // HUD de item/moeda
+            DrawText(itemsText, 10, 60, 18, GOLD); 
             
         } else if (currentScreen == END_GAME) {
-            // === TELA DE FIM (REVISADA) ===
+            // === TELA DE FIM ===
             const char* message;
             Color messageColor;
-            char scoreMsg[16];
             char finalMessage[128] = "";
-
+            
             if (gameResult == 1) {
                 sprintf(finalMessage, "CAPTURADO! Policial %d VENCEU! Score: %d", winnerPoliceIndex + 1, lastScore);
                 message = finalMessage;
