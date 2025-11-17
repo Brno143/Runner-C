@@ -78,7 +78,7 @@ void Ranking_AddPolicia(const char* name, int score){
 void Ranking_DrawPolicia(int x, int y){
     DrawText("RANKING - POLICIAL", x, y, 20, GOLD);
     for (int i=0;i<rankingPolicia_count;i++){
-        char buf[128];
+        char buf[256];
         sprintf(buf, "%2d. %-10s  %5d", i+1, rankingPolicia[i].name, rankingPolicia[i].score);
         DrawText(buf, x, y + 30 + i*22, 18, RAYWHITE);
     }
@@ -144,7 +144,7 @@ void Ranking_AddLadrao(const char* name, int score){
 void Ranking_DrawLadrao(int x, int y){
     DrawText("RANKING - LADRAO", x, y, 20, GREEN);
     for (int i=0;i<rankingLadrao_count;i++){
-        char buf[128];
+        char buf[256];
         sprintf(buf, "%2d. %-10s  %5d", i+1, rankingLadrao[i].name, rankingLadrao[i].score);
         DrawText(buf, x, y + 30 + i*22, 18, RAYWHITE);
     }

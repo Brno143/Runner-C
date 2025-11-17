@@ -3,7 +3,7 @@
 
 // Variáveis definidas externamente em jogo.h
 int lastScore = 0;
-char playerName[32] = "";
+char playerName[31] = "";
 int enteringName = 0;
 
 // Runtime tile size (defined here so other modules can use it via extern in jogo.h)
