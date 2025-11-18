@@ -50,7 +50,10 @@ int main(void){
     SCALE_Y = 1.0f;
     
     texturaladrao = LoadTexture("textureladrao.png"); 
-    texturapolicia = LoadTexture("texturepolicia.png"); 
+    texturapolicia = LoadTexture("texturepolicia.png");
+    texturaarmadilha = LoadTexture("texturearmadilha.png");
+    texturaescudo = LoadTexture("textureescudo.png");
+    texturavelocidade = LoadTexture("texturevelocidade.png"); 
     
     SetTargetFPS(60); 
 

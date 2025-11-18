@@ -48,6 +48,9 @@ extern int enteringName;
 
 extern Texture2D texturaladrao;
 extern Texture2D texturapolicia;
+extern Texture2D texturaarmadilha;
+extern Texture2D texturaescudo;
+extern Texture2D texturavelocidade;
 
 // --- NOVAS CONSTANTES E ESTRUTURAS PARA POWER-UPS ---
 #define MAX_POWERUPS 5
