@@ -516,17 +516,41 @@ void DrawGame(void){
                 }
             }
             
-            // === DESENHAR POWERUPS ===
+            // === DESENHAR POWERUPS (usa texturas se disponíveis) ===
             for (int i = 0; i < MAX_POWERUPS; i++) {
                 if (powerups[i].active) {
-                    Color color = RAYWHITE;
-                    char symbol = '?';
-                    if (powerups[i].type == POWERUP_BOOST) { color = LIME; symbol = 'S'; } 
-                    else if (powerups[i].type == POWERUP_STUN_BOMB) { color = BLUE; symbol = 'A'; } // 'A' de Aura
-                    else if (powerups[i].type == POWERUP_TRAP) { color = RED; symbol = 'T'; } 
-                    
-                    DrawCircle((int)powerups[i].position.x, (int)powerups[i].position.y, (float)TILE_SIZE * 0.2f, color);
-                    DrawText(TextFormat("%c", symbol), (int)powerups[i].position.x - 5, (int)powerups[i].position.y - 10, 20, BLACK);
+                    Texture2D* tex = NULL;
+                    Color tint = RAYWHITE;
+                    if (powerups[i].type == POWERUP_BOOST) { tex = &texturapower_boost; tint = LIME; }
+                    else if (powerups[i].type == POWERUP_STUN_BOMB) { tex = &texturapower_stun; tint = BLUE; }
+                    else if (powerups[i].type == POWERUP_TRAP) { tex = &texturapower_trap; tint = RED; }
+
+                    float puSize = (float)TILE_SIZE * 0.6f;
+                    Vector2 center = powerups[i].position;
+
+                    // Desenha apenas a textura (sem fundo colorido) centralizada e levemente menor que o círculo (se disponível)
+                    if (tex != NULL && tex->width > 0 && tex->height > 0) {
+                        // aumenta um pouco para preencher melhor o círculo
+                        float inner = puSize * 0.92f;
+                        float destX = center.x - inner * 0.5f;
+                        float destY = center.y - inner * 0.5f;
+                        DrawTexturePro(
+                            *tex,
+                            (Rectangle){ 0, 0, tex->width, tex->height },
+                            (Rectangle){ destX, destY, inner, inner },
+                            (Vector2){ 0, 0 },
+                            0.0f,
+                            WHITE
+                        );
+                    } else {
+                        // Fallback: desenha símbolo no centro (sem fundo)
+                        Color color = RAYWHITE;
+                        char symbol = '?';
+                        if (powerups[i].type == POWERUP_BOOST) { color = LIME; symbol = 'S'; } 
+                        else if (powerups[i].type == POWERUP_STUN_BOMB) { color = BLUE; symbol = 'A'; }
+                        else if (powerups[i].type == POWERUP_TRAP) { color = RED; symbol = 'T'; }
+                        DrawText(TextFormat("%c", symbol), (int)center.x - 5, (int)center.y - 10, 20, color);
+                    }
                 }
             }
             
