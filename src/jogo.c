@@ -224,17 +224,8 @@ void UpdateGame(float dt){
             numPolicias = 1;
             InitGame();
             currentScreen = GAMEPLAY;
-        } else if (IsKeyPressed(KEY_TWO)) {
-            numPolicias = 2;
-            InitGame();
-            currentScreen = GAMEPLAY;
-        } else if (IsKeyPressed(KEY_THREE)) {
-            numPolicias = 3;
-            InitGame();
-            currentScreen = GAMEPLAY;
         }
-        
-    } else if (currentScreen == GAMEPLAY) {
+} else if (currentScreen == GAMEPLAY) {
         
         // === GESTÃO DO TEMPORIZADOR DE SPAWN DE POWERUP ===
         powerupSpawnTimer -= dt;
@@ -495,8 +486,6 @@ void DrawGame(void){
             DrawText("Selecione o numero de jogadores:", GetScreenWidth()/2 - 250, 300, 25, RAYWHITE);
             
             DrawText("[1] - 2 Jogadores (1 Policial vs 1 Ladrao)", GetScreenWidth()/2 - 280, 380, 22, GREEN);
-            DrawText("[2] - 3 Jogadores (2 Policiais vs 1 Ladrao)", GetScreenWidth()/2 - 280, 430, 22, GREEN);
-            DrawText("[3] - 4 Jogadores (3 Policiais vs 1 Ladrao)", GetScreenWidth()/2 - 280, 480, 22, GREEN);
             
             DrawText("CONTROLES:", GetScreenWidth()/2 - 100, 580, 20, YELLOW);
             
@@ -505,8 +494,6 @@ void DrawGame(void){
             
             // LINHAS CORRIGIDAS/SEPARADAS
             DrawText("Policial 1: SETAS | Especial: TRAP (Ativada no chão ao coletar o item)", 100, 660, 18, RAYWHITE);
-            DrawText("Policial 2: IJKL", 100, 690, 18, RAYWHITE); // Adicionado Policial 2 na linha correta
-            DrawText("Policial 3: TFGH", 100, 720, 18, RAYWHITE); // Ajustado Policial 3
             
         } else if (currentScreen == GAMEPLAY) {
             // === DESENHAR O MAPA ===
