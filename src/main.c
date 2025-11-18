@@ -21,6 +21,9 @@ int itemsCollected = 0;
 
 Texture2D texturaladrao;
 Texture2D texturapolicia;
+Texture2D texturapower_boost; 
+Texture2D texturapower_stun;
+Texture2D texturapower_trap;
 
 GameScreen currentScreen = MENU; // Começa no menu
 int gameResult = 0;
@@ -50,10 +53,11 @@ int main(void){
     SCALE_Y = 1.0f;
     
     texturaladrao = LoadTexture("textureladrao.png"); 
-    texturapolicia = LoadTexture("texturepolicia.png");
-    texturaarmadilha = LoadTexture("texturearmadilha.png");
-    texturaescudo = LoadTexture("textureescudo.png");
-    texturavelocidade = LoadTexture("texturevelocidade.png"); 
+    texturapolicia = LoadTexture("texturepolicia.png"); 
+    // Carrega texturas dos power-ups (adicione os arquivos na raiz do projeto)
+    texturapower_boost = LoadTexture("power_boost.png");
+    texturapower_stun = LoadTexture("power_stun.png");
+    texturapower_trap = LoadTexture("power_trap.png");
     
     SetTargetFPS(60); 
 
@@ -72,6 +76,9 @@ int main(void){
     
     UnloadTexture(texturaladrao);
     UnloadTexture(texturapolicia);
+    UnloadTexture(texturapower_boost);
+    UnloadTexture(texturapower_stun);
+    UnloadTexture(texturapower_trap);
     CloseWindow(); 
     return 0;
 }
