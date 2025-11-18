@@ -4,151 +4,187 @@
 #include <stdlib.h>
 #include "raylib.h"
 
-// Arrays separados para cada ranking
-static ScoreEntry rankingPolicia[RANKING_SIZE];
+// Implementação de ranking usando lista encadeada dinâmica
+// Cada nó guarda um ScoreEntry e o ponteiro next
+
+typedef struct RankNode {
+    ScoreEntry entry;
+    struct RankNode* next;
+} RankNode;
+
+// Cabeças e contadores para Policiais e Ladrão
+static RankNode* rankingPolicia_head = NULL;
 static int rankingPolicia_count = 0;
 
-static ScoreEntry rankingLadrao[RANKING_SIZE];
+static RankNode* rankingLadrao_head = NULL;
 static int rankingLadrao_count = 0;
 
-// Helper: sort descending
-static int cmp_desc(const void* a, const void* b){
-    const ScoreEntry* sa = (const ScoreEntry*)a;
-    const ScoreEntry* sb = (const ScoreEntry*)b;
-    return sb->score - sa->score;
+// Helpers
+static RankNode* create_node(const char* name, int score){
+    RankNode* n = (RankNode*)malloc(sizeof(RankNode));
+    if (!n) return NULL;
+    strncpy(n->entry.name, name ? name : "ANON", RANKING_NAME_MAX);
+    n->entry.name[RANKING_NAME_MAX] = '\0';
+    n->entry.score = score;
+    n->next = NULL;
+    return n;
 }
 
-// ===== FUNÇÕES DO RANKING DO POLICIAL =====
-void Ranking_LoadPolicia(void){
-    FILE *f = fopen("ranking_policia.txt", "r");
-    rankingPolicia_count = 0;
-    if (!f) return; // se não existe, inicia vazio
+static void free_list(RankNode** head){
+    RankNode* cur = *head;
+    while (cur) {
+        RankNode* nx = cur->next;
+        free(cur);
+        cur = nx;
+    }
+    *head = NULL;
+}
 
-    while (rankingPolicia_count < RANKING_SIZE && !feof(f)){
-        char name[RANKING_NAME_MAX+1];
-        int score;
-        if (fscanf(f, "%31s %d\n", name, &score) == 2){
-            strncpy(rankingPolicia[rankingPolicia_count].name, name, RANKING_NAME_MAX);
-            rankingPolicia[rankingPolicia_count].name[RANKING_NAME_MAX] = '\0';
-            rankingPolicia[rankingPolicia_count].score = score;
-            rankingPolicia_count++;
-        } else break;
+// Insere o nó em ordem decrescente (score maior primeiro)
+static void insert_sorted(RankNode** head, RankNode* node){
+    if (!head || !node) return;
+    if (*head == NULL || node->entry.score > (*head)->entry.score){
+        node->next = *head;
+        *head = node;
+        return;
+    }
+    RankNode* cur = *head;
+    while (cur->next && cur->next->entry.score >= node->entry.score) {
+        cur = cur->next;
+    }
+    node->next = cur->next;
+    cur->next = node;
+}
+
+// Remove último nó (menor score). Retorna 1 se removeu, 0 se lista vazia
+static int remove_last(RankNode** head){
+    if (!head || !*head) return 0;
+    RankNode* cur = *head;
+    RankNode* prev = NULL;
+    while (cur->next){ prev = cur; cur = cur->next; }
+    if (!prev){ // só um
+        free(cur);
+        *head = NULL;
+    } else {
+        prev->next = NULL;
+        free(cur);
+    }
+    return 1;
+}
+
+// ===== POLICIA =====
+void Ranking_LoadPolicia(void){
+    free_list(&rankingPolicia_head);
+    rankingPolicia_count = 0;
+    FILE *f = fopen("ranking_policia.txt", "r");
+    if (!f) return;
+
+    char name[RANKING_NAME_MAX+1];
+    int score;
+    while (rankingPolicia_count < RANKING_SIZE && fscanf(f, "%31s %d\n", name, &score) == 2){
+        RankNode* n = create_node(name, score);
+        if (!n) break;
+        insert_sorted(&rankingPolicia_head, n);
+        rankingPolicia_count++;
     }
     fclose(f);
-    if (rankingPolicia_count>0) qsort(rankingPolicia, rankingPolicia_count, sizeof(ScoreEntry), cmp_desc);
 }
 
 void Ranking_SavePolicia(void){
     FILE *f = fopen("ranking_policia.txt", "w");
     if (!f) return;
-    for (int i=0;i<rankingPolicia_count;i++){
-        fprintf(f, "%s %d\n", rankingPolicia[i].name, rankingPolicia[i].score);
+    RankNode* cur = rankingPolicia_head;
+    while (cur){
+        fprintf(f, "%s %d\n", cur->entry.name, cur->entry.score);
+        cur = cur->next;
     }
     fclose(f);
 }
 
 void Ranking_AddPolicia(const char* name, int score){
-    // Se nome vazio, usa ANON
     const char* used = (name && name[0]) ? name : "ANON";
-
-    // Se há menos do que RANKING_SIZE, adiciona direto
-    if (rankingPolicia_count < RANKING_SIZE){
-        strncpy(rankingPolicia[rankingPolicia_count].name, used, RANKING_NAME_MAX);
-        rankingPolicia[rankingPolicia_count].name[RANKING_NAME_MAX] = '\0';
-        rankingPolicia[rankingPolicia_count].score = score;
-        rankingPolicia_count++;
-    } else {
-        // Se o novo score for melhor que o menor, substitui
-        int minIdx = 0;
-        for (int i=1;i<rankingPolicia_count;i++){
-            if (rankingPolicia[i].score < rankingPolicia[minIdx].score) minIdx = i;
-        }
-        if (score > rankingPolicia[minIdx].score){
-            strncpy(rankingPolicia[minIdx].name, used, RANKING_NAME_MAX);
-            rankingPolicia[minIdx].name[RANKING_NAME_MAX] = '\0';
-            rankingPolicia[minIdx].score = score;
-        } else {
-            return;
-        }
+    RankNode* n = create_node(used, score);
+    if (!n) return;
+    insert_sorted(&rankingPolicia_head, n);
+    rankingPolicia_count++;
+    if (rankingPolicia_count > RANKING_SIZE){
+        // remove último
+        remove_last(&rankingPolicia_head);
+        rankingPolicia_count = RANKING_SIZE;
     }
-    qsort(rankingPolicia, rankingPolicia_count, sizeof(ScoreEntry), cmp_desc);
     Ranking_SavePolicia();
 }
 
 void Ranking_DrawPolicia(int x, int y){
     DrawText("RANKING - POLICIAL", x, y, 20, GOLD);
-    for (int i=0;i<rankingPolicia_count;i++){
-        char buf[256];
-        sprintf(buf, "%2d. %-10s  %5d", i+1, rankingPolicia[i].name, rankingPolicia[i].score);
-        DrawText(buf, x, y + 30 + i*22, 18, RAYWHITE);
-    }
-    if (rankingPolicia_count == 0){
+    if (!rankingPolicia_head){
         DrawText("(vazio)", x, y + 30, 18, RAYWHITE);
+        return;
+    }
+    RankNode* cur = rankingPolicia_head;
+    int i = 0;
+    char buf[256];
+    while (cur && i < RANKING_SIZE){
+        sprintf(buf, "%2d. %-10s  %5d", i+1, cur->entry.name, cur->entry.score);
+        DrawText(buf, x, y + 30 + i*22, 18, RAYWHITE);
+        cur = cur->next; i++;
     }
 }
 
-// ===== FUNÇÕES DO RANKING DO LADRÃO =====
+// ===== LADRÃO =====
 void Ranking_LoadLadrao(void){
-    FILE *f = fopen("ranking_ladrao.txt", "r");
+    free_list(&rankingLadrao_head);
     rankingLadrao_count = 0;
+    FILE *f = fopen("ranking_ladrao.txt", "r");
     if (!f) return;
 
-    while (rankingLadrao_count < RANKING_SIZE && !feof(f)){
-        char name[RANKING_NAME_MAX+1];
-        int score;
-        if (fscanf(f, "%31s %d\n", name, &score) == 2){
-            strncpy(rankingLadrao[rankingLadrao_count].name, name, RANKING_NAME_MAX);
-            rankingLadrao[rankingLadrao_count].name[RANKING_NAME_MAX] = '\0';
-            rankingLadrao[rankingLadrao_count].score = score;
-            rankingLadrao_count++;
-        } else break;
+    char name[RANKING_NAME_MAX+1];
+    int score;
+    while (rankingLadrao_count < RANKING_SIZE && fscanf(f, "%31s %d\n", name, &score) == 2){
+        RankNode* n = create_node(name, score);
+        if (!n) break;
+        insert_sorted(&rankingLadrao_head, n);
+        rankingLadrao_count++;
     }
     fclose(f);
-    if (rankingLadrao_count>0) qsort(rankingLadrao, rankingLadrao_count, sizeof(ScoreEntry), cmp_desc);
 }
 
 void Ranking_SaveLadrao(void){
     FILE *f = fopen("ranking_ladrao.txt", "w");
     if (!f) return;
-    for (int i=0;i<rankingLadrao_count;i++){
-        fprintf(f, "%s %d\n", rankingLadrao[i].name, rankingLadrao[i].score);
+    RankNode* cur = rankingLadrao_head;
+    while (cur){
+        fprintf(f, "%s %d\n", cur->entry.name, cur->entry.score);
+        cur = cur->next;
     }
     fclose(f);
 }
 
 void Ranking_AddLadrao(const char* name, int score){
     const char* used = (name && name[0]) ? name : "ANON";
-
-    if (rankingLadrao_count < RANKING_SIZE){
-        strncpy(rankingLadrao[rankingLadrao_count].name, used, RANKING_NAME_MAX);
-        rankingLadrao[rankingLadrao_count].name[RANKING_NAME_MAX] = '\0';
-        rankingLadrao[rankingLadrao_count].score = score;
-        rankingLadrao_count++;
-    } else {
-        int minIdx = 0;
-        for (int i=1;i<rankingLadrao_count;i++){
-            if (rankingLadrao[i].score < rankingLadrao[minIdx].score) minIdx = i;
-        }
-        if (score > rankingLadrao[minIdx].score){
-            strncpy(rankingLadrao[minIdx].name, used, RANKING_NAME_MAX);
-            rankingLadrao[minIdx].name[RANKING_NAME_MAX] = '\0';
-            rankingLadrao[minIdx].score = score;
-        } else {
-            return;
-        }
+    RankNode* n = create_node(used, score);
+    if (!n) return;
+    insert_sorted(&rankingLadrao_head, n);
+    rankingLadrao_count++;
+    if (rankingLadrao_count > RANKING_SIZE){
+        remove_last(&rankingLadrao_head);
+        rankingLadrao_count = RANKING_SIZE;
     }
-    qsort(rankingLadrao, rankingLadrao_count, sizeof(ScoreEntry), cmp_desc);
     Ranking_SaveLadrao();
 }
 
 void Ranking_DrawLadrao(int x, int y){
     DrawText("RANKING - LADRAO", x, y, 20, GREEN);
-    for (int i=0;i<rankingLadrao_count;i++){
-        char buf[256];
-        sprintf(buf, "%2d. %-10s  %5d", i+1, rankingLadrao[i].name, rankingLadrao[i].score);
-        DrawText(buf, x, y + 30 + i*22, 18, RAYWHITE);
-    }
-    if (rankingLadrao_count == 0){
+    if (!rankingLadrao_head){
         DrawText("(vazio)", x, y + 30, 18, RAYWHITE);
+        return;
+    }
+    RankNode* cur = rankingLadrao_head;
+    int i = 0;
+    char buf[256];
+    while (cur && i < RANKING_SIZE){
+        sprintf(buf, "%2d. %-10s  %5d", i+1, cur->entry.name, cur->entry.score);
+        DrawText(buf, x, y + 30 + i*22, 18, RAYWHITE);
+        cur = cur->next; i++;
     }
 }
