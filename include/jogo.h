@@ -48,6 +48,7 @@ extern int enteringName;
 
 extern Texture2D texturaladrao;
 extern Texture2D texturapolicia;
+extern Texture2D texturawall;
 // Texturas de Power-ups
 extern Texture2D texturapower_boost;
 extern Texture2D texturapower_stun;
