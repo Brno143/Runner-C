@@ -91,12 +91,18 @@ typedef struct {
     int active;         // 1: Armadilha no chão
 } PlacedTrap;
 
+// Nó para lista encadeada de Armadilhas
+typedef struct TrapNode {
+    PlacedTrap trap;
+    struct TrapNode* next;
+} TrapNode;
+
 // NOVAS VARIÁVEIS EXTERNAS GLOBAIS PARA POWER-UPS/ESTADOS
 extern PowerUp powerups[MAX_POWERUPS];
 extern int numActivePowerups;
 extern float powerupSpawnTimer;
 
-extern PlacedTrap currentTrap;
+extern TrapNode* trapsHead;
 extern float boostTimer[2]; // [0] Ladrão, [1] Policial
 extern int characterState[2]; // [0] Ladrão, [1] Policial
 // Estados: 0=Normal; 1=Atordoado (STUNNED - efeito); 2=Power Stun Pronto (Ladrão)
@@ -125,6 +131,11 @@ void PowerUp_FreeList(PowerUpNode** head);
 ItemNode* Item_Create(Vector2 position, int row, int col);
 void Item_AddToList(ItemNode** head, ItemNode* node);
 void Item_FreeList(ItemNode** head);
+
+TrapNode* Trap_Create(Vector2 position);
+void Trap_AddToList(TrapNode** head, TrapNode* node);
+void Trap_RemoveFromList(TrapNode** head, TrapNode* node);
+void Trap_FreeList(TrapNode** head);
 
 // Funções de Ranking (CORRIGIDAS E COMPLETAS)
 void Ranking_LoadPolicia(void);

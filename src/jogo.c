@@ -48,11 +48,11 @@ int gameMap[MAP_ROWS][MAP_COLS] = {
 // Listas encadeadas (alocação dinâmica)
 ItemNode* itemsHead = NULL;
 PowerUpNode* powerupsHead = NULL;
+TrapNode* trapsHead = NULL;
 
 // Variáveis Globais PowerUp e Efeitos
 int numActivePowerups = 0;
 float powerupSpawnTimer = 0.0f;
-PlacedTrap currentTrap = {0};
 float boostTimer[2] = {0.0f}; // [0] Ladrão, [1] Policial
 int characterState[2] = {0};  // [0] Ladrão, [1] Policial 
 
@@ -136,6 +136,58 @@ void Item_FreeList(ItemNode** head) {
     ItemNode* current = *head;
     while (current) {
         ItemNode* next = current->next;
+        free(current);
+        current = next;
+    }
+    *head = NULL;
+}
+
+// Criar uma nova Armadilha
+TrapNode* Trap_Create(Vector2 position) {
+    TrapNode* node = (TrapNode*)malloc(sizeof(TrapNode));
+    if (node) {
+        node->trap.position = position;
+        node->trap.timeRemaining = TRAP_DURATION;
+        node->trap.active = 1;
+        node->next = NULL;
+    }
+    return node;
+}
+
+// Adicionar Armadilha à lista
+void Trap_AddToList(TrapNode** head, TrapNode* node) {
+    if (!node) return;
+    node->next = *head;
+    *head = node;
+}
+
+// Remover Armadilha da lista
+void Trap_RemoveFromList(TrapNode** head, TrapNode* node) {
+    if (!head || !*head || !node) return;
+    
+    if (*head == node) {
+        *head = node->next;
+        free(node);
+        return;
+    }
+    
+    TrapNode* current = *head;
+    while (current->next && current->next != node) {
+        current = current->next;
+    }
+    
+    if (current->next == node) {
+        current->next = node->next;
+        free(node);
+    }
+}
+
+// Liberar toda a lista de Armadilhas
+void Trap_FreeList(TrapNode** head) {
+    if (!head) return;
+    TrapNode* current = *head;
+    while (current) {
+        TrapNode* next = current->next;
         free(current);
         current = next;
     }
@@ -288,9 +340,9 @@ void InitGame(void){
 
     // === Inicializa POWERUPS/EFEITOS ===
     PowerUp_FreeList(&powerupsHead); // Libera powerups anteriores
+    Trap_FreeList(&trapsHead); // Libera armadilhas anteriores
     powerupSpawnTimer = (float)GetRandomValue(4, 8);
     numActivePowerups = 0;
-    currentTrap.active = 0;
     boostTimer[0] = 0.0f;
     boostTimer[1] = 0.0f;
     characterState[0] = 0; // Estado normal
@@ -398,16 +450,33 @@ void UpdateGame(float dt){
 
         MoveCharacter(&policial, dt);
         
-        // === GESTÃO DA ARMADILHA (TRAP) ===
-        if (currentTrap.active) {
-            // Armadilha fica ativa até ser acionada.
-            // Checa colisão do Ladrão com a Armadilha
-            float distance = Vector2Distance(ladrao.position, currentTrap.position);
-            if (distance < COLLISION_DISTANCE) {
-                characterState[0] = 1; // Ladrão imobilizado
-                boostTimer[0] = POWERUP_DURATION_STUN; // Reutiliza timer para stun (3s)
-                currentTrap.active = 0; // Armadilha ativada/gasta
+        // === GESTÃO DAS ARMADILHAS (TRAP) ===
+        TrapNode* currentTrapNode = trapsHead;
+        TrapNode* prevTrap = NULL;
+        
+        while (currentTrapNode != NULL) {
+            if (currentTrapNode->trap.active) {
+                // Atualiza tempo de duração
+                currentTrapNode->trap.timeRemaining -= dt;
+                
+                // Verifica se expirou
+                if (currentTrapNode->trap.timeRemaining <= 0.0f) {
+                    TrapNode* toRemove = currentTrapNode;
+                    currentTrapNode = currentTrapNode->next;
+                    Trap_RemoveFromList(&trapsHead, toRemove);
+                    continue;
+                }
+                
+                // Checa colisão do Ladrão com a Armadilha
+                float distance = Vector2Distance(ladrao.position, currentTrapNode->trap.position);
+                if (distance < COLLISION_DISTANCE) {
+                    characterState[0] = 1; // Ladrão imobilizado
+                    boostTimer[0] = POWERUP_DURATION_STUN; // Aplica stun (3s)
+                    // Armadilha permanece ativa para outros acionamentos
+                }
             }
+            prevTrap = currentTrapNode;
+            currentTrapNode = currentTrapNode->next;
         }
 
         // === COLETA DE POWERUPS (LISTA ENCADEADA) ===
@@ -445,8 +514,11 @@ void UpdateGame(float dt){
                     characterState[0] = 2;
                     boostTimer[0] = POWERUP_DURATION_BOOST;
                 } else if (currentPowerup->powerup.type == POWERUP_TRAP && character_index == 1) { 
-                    currentTrap.position = currentPowerup->powerup.position;
-                    currentTrap.active = 1;
+                    // Cria uma nova armadilha na posição do power-up
+                    TrapNode* newTrap = Trap_Create(currentPowerup->powerup.position);
+                    if (newTrap != NULL) {
+                        Trap_AddToList(&trapsHead, newTrap);
+                    }
                     characterState[1] = 0;
                 } else if (currentPowerup->powerup.type == POWERUP_STUN_BOMB && character_index > 0) {
                     collected = 0;
@@ -694,10 +766,12 @@ void DrawGame(void){
                 currentPowerup = currentPowerup->next;
             }
             
-            // === DESENHAR ARMADILHA COLOCADA ===
-            if (currentTrap.active) {
-                DrawCircleV(currentTrap.position, (float)TILE_SIZE * 0.3f, Fade(RED, 0.7f));
-                DrawText("TRAP", (int)currentTrap.position.x - 20, (int)currentTrap.position.y - 10, 15, BLACK);
+            // === DESENHAR ARMADILHAS COLOCADAS ===
+            TrapNode* currentTrapNode = trapsHead;
+            while (currentTrapNode != NULL) {
+                DrawCircleV(currentTrapNode->trap.position, (float)TILE_SIZE * 0.3f, Fade(RED, 0.7f));
+                DrawText("TRAP", (int)currentTrapNode->trap.position.x - 20, (int)currentTrapNode->trap.position.y - 10, 15, BLACK);
+                currentTrapNode = currentTrapNode->next;
             }
 
             // === DESENHAR LADRÃO E POLICIAIS ===
