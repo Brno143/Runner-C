@@ -34,10 +34,7 @@ int winnerPoliceIndex = -1; // -1 = nenhum
 float gameTimer = 0.0f;              
 
 int main(void){
-    // Create a window that matches the monitor resolution and compute drawing scale
-    int monitorW = GetMonitorWidth(0);
-    int monitorH = GetMonitorHeight(0);
-
+    // Define a resolução da janela
     const int larguraTela = 1920;  // Largura em pixels
     const int alturaTela = 1080;   // Altura em pixels
 
@@ -47,6 +44,7 @@ int main(void){
 
     // Calcula o tamanho do tile para preencher toda a tela
     // Usa o MENOR valor para garantir que o mapa caiba completamente
+    // As variáveis monitorW e monitorH foram removidas daqui, eliminando os warnings.
     int tileSizeW = larguraTela / MAP_COLS;
     int tileSizeH = alturaTela / MAP_ROWS;
     TILE_SIZE = (tileSizeW < tileSizeH) ? tileSizeW : tileSizeH;
