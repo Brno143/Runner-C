@@ -14,7 +14,6 @@
 #define TILE_WALL 1
 #define TILE_ITEM 2
 #define TILE_EMPTY 0
-#define MAX_POLICIAS 3 // Máximo de 3 policiais
 #define MAX_ITEMS 20 // Total de itens no mapa
 
 typedef enum { MENU, GAMEPLAY, END_GAME } GameScreen;
@@ -38,14 +37,12 @@ typedef struct {
 // --- VARIÁVEIS EXTERNAS (Definidas em jogo.c, usadas em main.c e jogo.c) ---
 extern GameScreen currentScreen;
 extern Character ladrao;
-extern Character policias[MAX_POLICIAS];
-extern int numPolicias; // Quantidade de policiais ativos (1, 2 ou 3)
+extern Character policial;
 extern Item items[MAX_ITEMS];
 extern int numItems;
 extern int itemsCollected;
 extern float gameTimer;
 extern int gameResult; // 1 = Polícia vence, 0 = Ladrão vence
-extern int winnerPoliceIndex; // Índice do policial que capturou
 extern int lastScore;
 extern char playerName[31];
 extern int enteringName;
@@ -100,9 +97,9 @@ extern int numActivePowerups;
 extern float powerupSpawnTimer;
 
 extern PlacedTrap currentTrap;
-extern float boostTimer[MAX_POLICIAS + 1]; // [0] Ladrão, [1-3] Policiais
-extern int characterState[MAX_POLICIAS + 1]; // [0] Ladrão, [1-3] Policiais
-// Estados: 0=Normal; 1=Atordoado (STUNNED - efeito); 2=Power Stun Pronto (Ladrão); 3=Power Trap Pronto (Policial 1)
+extern float boostTimer[2]; // [0] Ladrão, [1] Policial
+extern int characterState[2]; // [0] Ladrão, [1] Policial
+// Estados: 0=Normal; 1=Atordoado (STUNNED - efeito); 2=Power Stun Pronto (Ladrão)
 
 // --- NOVAS CONSTANTES E ESTRUTURAS PARA RANKING ---
 #define RANKING_SIZE 10

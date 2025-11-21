@@ -45,9 +45,6 @@ int gameMap[MAP_ROWS][MAP_COLS] = {
     {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, 
 };
 
-// Posições iniciais (DECLARADAS sem inicialização)
-static Vector2 policeStartPositions[MAX_POLICIAS]; 
-
 // Listas encadeadas (alocação dinâmica)
 ItemNode* itemsHead = NULL;
 PowerUpNode* powerupsHead = NULL;
@@ -56,8 +53,8 @@ PowerUpNode* powerupsHead = NULL;
 int numActivePowerups = 0;
 float powerupSpawnTimer = 0.0f;
 PlacedTrap currentTrap = {0};
-float boostTimer[MAX_POLICIAS + 1] = {0.0f}; 
-int characterState[MAX_POLICIAS + 1] = {0}; 
+float boostTimer[2] = {0.0f}; // [0] Ladrão, [1] Policial
+int characterState[2] = {0};  // [0] Ladrão, [1] Policial 
 
 // ====== FUNÇÕES DE GERENCIAMENTO DE LISTAS ENCADEADAS ======
 
@@ -254,8 +251,6 @@ static void TrySpawnPowerUp(int type) {
 void InitGame(void){
     
     float current_radius = (float)TILE_SIZE / 2.0f;
-    
-    policeStartPositions[0] = (Vector2){(float)2 * TILE_SIZE + current_radius, (float)1 * TILE_SIZE + current_radius}; // P1
 
     // Inicializa ladrão: Posição no canto inferior direito (longe do policial)
     // Linha 15, Coluna 27 é uma posição vazia (0) no mapa
@@ -263,11 +258,11 @@ void InitGame(void){
     ladrao.speed = 180.0f;
     ladrao.active = 1;
     
-    // Inicializa policial
-    policias[0].position = policeStartPositions[0]; 
-    policias[0].speed = 170.0f;
-    policias[0].active = 1;
-    policias[0].playerIndex = 0;
+    // Inicializa policial 
+    policial.position = (Vector2){(float)2 * TILE_SIZE + current_radius, (float)1 * TILE_SIZE + current_radius};
+    policial.speed = 170.0f;
+    policial.active = 1;
+    policial.playerIndex = 0;
     
     // === INICIALIZA ITENS COM LISTA ENCADEADA (alocação dinâmica) ===
     Item_FreeList(&itemsHead); // Libera lista anterior se existir
@@ -296,20 +291,18 @@ void InitGame(void){
     powerupSpawnTimer = (float)GetRandomValue(4, 8);
     numActivePowerups = 0;
     currentTrap.active = 0;
-    for (int i = 0; i <= MAX_POLICIAS; i++) {
-        boostTimer[i] = 0.0f;
-        characterState[i] = 0; // Estado normal
-    }
+    boostTimer[0] = 0.0f;
+    boostTimer[1] = 0.0f;
+    characterState[0] = 0; // Estado normal
+    characterState[1] = 0;
     
     gameTimer = INITIAL_TIME;
     gameResult = 0;
-    winnerPoliceIndex = -1;
 }
 
 void UpdateGame(float dt){
     if (currentScreen == MENU) {
         if (IsKeyPressed(KEY_ENTER)) {
-            numPolicias = 1;
             InitGame();
             currentScreen = GAMEPLAY;
         }
@@ -357,19 +350,16 @@ void UpdateGame(float dt){
              if (boostTimer[0] <= 0.0f) { // Se o tempo da aura acabar
                  characterState[0] = 0; // Desativa a aura
              } else {
-                 // Verifica se atinge algum policial dentro do raio da aura
-                 for (int i = 0; i < numPolicias; i++) {
-                    float distance = Vector2Distance(ladrao.position, policias[i].position);
-                    if (policias[i].active && distance < (float)TILE_SIZE * 1.5f) { // Alcance da aura
-                        if (characterState[i + 1] == 0) { // Se o policial não estiver já stunado
-                            characterState[i + 1] = 1; // Policial atordoado
-                            boostTimer[i + 1] = POWERUP_DURATION_STUN; // Aplica o stun (3s)
-                            
-                            // Gasta o poder na primeira ativação de stun
-                            characterState[0] = 0; 
-                            boostTimer[0] = 0.0f; 
-                            break; // Sai do loop após atordoar 1 policial
-                        }
+                 // Verifica se atinge o policial dentro do raio da aura
+                 float distance = Vector2Distance(ladrao.position, policial.position);
+                 if (policial.active && distance < (float)TILE_SIZE * 1.5f) { // Alcance da aura
+                    if (characterState[1] == 0) { // Se o policial não estiver já stunado
+                        characterState[1] = 1; // Policial atordoado
+                        boostTimer[1] = POWERUP_DURATION_STUN; // Aplica o stun (3s)
+                        
+                        // Gasta o poder na primeira ativação de stun
+                        characterState[0] = 0; 
+                        boostTimer[0] = 0.0f;
                     }
                  }
              }
@@ -377,41 +367,36 @@ void UpdateGame(float dt){
 
         MoveCharacter(&ladrao, dt);
         
-        // Policiais (Índices 1, 2, 3 no array characterState)
-        for (int i = 0; i < numPolicias; i++) {
-            Character* p = &policias[i];
-            
-            // Ajuste de velocidade e tempo de efeito (Policiais - Índice i+1)
-            p->speed = 170.0f;
-            if (boostTimer[i + 1] > 0.0f) {
-                // Policial pode ter BOOST ou estar STUNNED. Se estiver STUNNED (state 1), a velocidade é 0.
-                if (characterState[i + 1] == 0) {
-                    p->speed = 270.0f; // Boost ativo
-                }
-                boostTimer[i + 1] -= dt;
-            } 
-            
-            // Tempo de STUN do Policial (se for 1)
-            if (characterState[i + 1] == 1) { 
-                p->speed = 0.0f; // Imobilizado
-                // O timer é controlado pelo boostTimer[i+1]
-                if (boostTimer[i + 1] <= 0.0f) characterState[i + 1] = 0; // Fim do stun
+        // Policial
+        policial.speed = 170.0f;
+        if (boostTimer[1] > 0.0f) {
+            // Policial pode ter BOOST ou estar STUNNED. Se estiver STUNNED (state 1), a velocidade é 0.
+            if (characterState[1] == 0) {
+                policial.speed = 270.0f; // Boost ativo
             }
-            
-            p->velocity = (Vector2){0.0f, 0.0f};
-            // Controles do Policial (setas) - Prioriza movimento vertical para evitar diagonal
-            if (IsKeyDown(KEY_UP)) {
-                p->velocity.y -= 1.0f;
-            } else if (IsKeyDown(KEY_DOWN)) {
-                p->velocity.y += 1.0f;
-            } else if (IsKeyDown(KEY_LEFT)) {
-                p->velocity.x -= 1.0f;
-            } else if (IsKeyDown(KEY_RIGHT)) {
-                p->velocity.x += 1.0f;
-            }
-
-            MoveCharacter(p, dt);
+            boostTimer[1] -= dt;
+        } 
+        
+        // Tempo de STUN do Policial (se for 1)
+        if (characterState[1] == 1) { 
+            policial.speed = 0.0f; // Imobilizado
+            // O timer é controlado pelo boostTimer[1]
+            if (boostTimer[1] <= 0.0f) characterState[1] = 0; // Fim do stun
         }
+        
+        policial.velocity = (Vector2){0.0f, 0.0f};
+        // Controles do Policial (setas) - Prioriza movimento vertical para evitar diagonal
+        if (IsKeyDown(KEY_UP)) {
+            policial.velocity.y -= 1.0f;
+        } else if (IsKeyDown(KEY_DOWN)) {
+            policial.velocity.y += 1.0f;
+        } else if (IsKeyDown(KEY_LEFT)) {
+            policial.velocity.x -= 1.0f;
+        } else if (IsKeyDown(KEY_RIGHT)) {
+            policial.velocity.x += 1.0f;
+        }
+
+        MoveCharacter(&policial, dt);
         
         // === GESTÃO DA ARMADILHA (TRAP) ===
         if (currentTrap.active) {
@@ -445,8 +430,8 @@ void UpdateGame(float dt){
                 collected = 1;
             } else {
                 // Policial coleta
-                dx = policias[0].position.x - currentPowerup->powerup.position.x;
-                dy = policias[0].position.y - currentPowerup->powerup.position.y;
+                dx = policial.position.x - currentPowerup->powerup.position.x;
+                dy = policial.position.y - currentPowerup->powerup.position.y;
                 if ((dx * dx + dy * dy) < POWERUP_COLLECTION_RADIUS_SQ) {
                     character_index = 1;
                     collected = 1;
@@ -492,7 +477,6 @@ void UpdateGame(float dt){
                     if (itemsCollected >= numItems) {
                         currentScreen = END_GAME;
                         gameResult = 0; 
-                        winnerPoliceIndex = -1;
                         lastScore = numItems * 100 + (int)(gameTimer * 5.0f); 
                         playerName[0] = '\0';
                         enteringName = 1;
@@ -504,12 +488,11 @@ void UpdateGame(float dt){
         }
         
         // === DETECÇÃO DE CAPTURA ===
-        float distance = Vector2Distance(ladrao.position, policias[0].position);
+        float distance = Vector2Distance(ladrao.position, policial.position);
         // Captura só acontece se nenhum dos dois estiver atordoado
         if (distance < COLLISION_DISTANCE && characterState[0] == 0 && characterState[1] == 0) {
             currentScreen = END_GAME;
             gameResult = 1;
-            winnerPoliceIndex = 0;
             lastScore = (int)((INITIAL_TIME - gameTimer) * 10.0f);
             playerName[0] = '\0'; 
             enteringName = 1;
@@ -522,7 +505,6 @@ void UpdateGame(float dt){
             gameTimer = 0.0f;
             currentScreen = END_GAME;
             gameResult = 0;
-            winnerPoliceIndex = -1;
             lastScore = (int)(INITIAL_TIME * 10.0f) + (itemsCollected * 50); 
             playerName[0] = '\0'; 
             enteringName = 1;
@@ -575,13 +557,11 @@ void DrawGame(void){
             DrawText("POLICIA vs LADRAO", GetScreenWidth()/2 - 200, 150, 40, GOLD);
             DrawText("Pressione ENTER para iniciar", GetScreenWidth()/2 - 200, 300, 25, RAYWHITE);
             
-            DrawText("2 JOGADORES - 1 Policial vs 1 Ladrao", GetScreenWidth()/2 - 250, 380, 22, GREEN);
+            DrawText("CONTROLES:", GetScreenWidth()/2 - 100, 480, 20, YELLOW);
             
-            DrawText("CONTROLES:", GetScreenWidth()/2 - 100, 580, 20, YELLOW);
+            DrawText("Ladrao: WASD | Especial: STUN AURA (Ativado ao coletar o item - 5s de efeito)", 100, 530, 18, RAYWHITE);
             
-            DrawText("Ladrao: WASD | Especial: STUN AURA (Ativado ao coletar o item - 5s de efeito)", 100, 630, 18, RAYWHITE);
-            
-            DrawText("Policial: SETAS | Especial: TRAP (Ativada no chao ao coletar o item)", 100, 660, 18, RAYWHITE);
+            DrawText("Policial: SETAS | Especial: TRAP (Ativada no chao ao coletar o item)", 100, 560, 18, RAYWHITE);
             
         } else if (currentScreen == GAMEPLAY) {
             // === DESENHAR O MAPA ===
@@ -756,24 +736,20 @@ void DrawGame(void){
             DrawTexturePro(
                 texturapolicia, 
                 (Rectangle){ 0, 0, texturapolicia.width, texturapolicia.height }, 
-                (Rectangle){ policias[0].position.x, policias[0].position.y, spriteSize, spriteSize },
+                (Rectangle){ policial.position.x, policial.position.y, spriteSize, spriteSize },
                 (Vector2){ spriteCenter, spriteCenter }, 
                 0.0f, 
                 pTint
             );
-            
-            DrawText("P1", (int)policias[0].position.x - 10, (int)policias[0].position.y - 45, 20, BLUE);
 
             // === HUD ===
             char timerText[32];
             sprintf(timerText, "TEMPO: %.1fs", gameTimer);
             DrawText(timerText, 10, 10, 20, WHITE);
             
-            DrawText("Policial: 1 | Ladrao: 1", 10, 35, 18, BLACK);
-            
             char itemsText[64];
             sprintf(itemsText, "Itens: %d/%d", itemsCollected, numItems);
-            DrawText(itemsText, 10, 60, 18, GOLD); 
+            DrawText(itemsText, 10, 35, 18, GOLD); 
             
             char powerupText[64];
             sprintf(powerupText, "Proximo PowerUp em: %.1fs", powerupSpawnTimer);

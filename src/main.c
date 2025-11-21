@@ -12,8 +12,7 @@ int TILE_SIZE = 30; // logical tile size (pixels) used by physics
 float SCALE_X = 1.0f; // drawing scale (screen/logical)
 float SCALE_Y = 1.0f;
 
-Character policias[MAX_POLICIAS];
-int numPolicias = 1; // Padrão: 1 policial (modo clássico)
+Character policial;
 Character ladrao;
 
 Item items[MAX_ITEMS];
