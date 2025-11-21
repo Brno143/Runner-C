@@ -4,6 +4,10 @@
 #include "raylib.h"
 #include <stdbool.h>
 
+// --- CONSTANTES DE TELA ---
+#define SCREEN_WIDTH 1920
+#define SCREEN_HEIGHT 1080
+
 // --- ENUMS E CONSTANTES DE JOGO ---
 #define MAP_ROWS 17
 #define MAP_COLS 30
@@ -49,6 +53,7 @@ extern int enteringName;
 extern Texture2D texturaladrao;
 extern Texture2D texturapolicia;
 extern Texture2D texturawall;
+extern Texture2D texturakey;
 // Texturas de Power-ups
 extern Texture2D texturapower_boost;
 extern Texture2D texturapower_stun;
@@ -70,6 +75,18 @@ typedef struct {
     Vector2 position;
     int active;         // 0: inativo, 1: ativo/no mapa
 } PowerUp;
+
+// Nó para lista encadeada de PowerUps
+typedef struct PowerUpNode {
+    PowerUp powerup;
+    struct PowerUpNode* next;
+} PowerUpNode;
+
+// Nó para lista encadeada de Items
+typedef struct ItemNode {
+    Item item;
+    struct ItemNode* next;
+} ItemNode;
 
 typedef struct {
     Vector2 position;
@@ -101,6 +118,16 @@ typedef struct {
 void InitGame(void);
 void UpdateGame(float dt);
 void DrawGame(void);
+
+// Funções de gerenciamento de listas encadeadas
+PowerUpNode* PowerUp_Create(int type, Vector2 position);
+void PowerUp_AddToList(PowerUpNode** head, PowerUpNode* node);
+void PowerUp_RemoveFromList(PowerUpNode** head, PowerUpNode* node);
+void PowerUp_FreeList(PowerUpNode** head);
+
+ItemNode* Item_Create(Vector2 position, int row, int col);
+void Item_AddToList(ItemNode** head, ItemNode* node);
+void Item_FreeList(ItemNode** head);
 
 // Funções de Ranking (CORRIGIDAS E COMPLETAS)
 void Ranking_LoadPolicia(void);

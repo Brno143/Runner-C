@@ -1,5 +1,6 @@
 #include "jogo.h"
 #include "raylib.h"
+#include <stdio.h>
 
 // Variáveis definidas externamente em jogo.h
 int lastScore = 0;
@@ -22,9 +23,10 @@ int itemsCollected = 0;
 Texture2D texturaladrao;
 Texture2D texturapolicia;
 Texture2D texturawall;
-Texture2D texturapower_boost; 
-Texture2D texturapower_stun;
-Texture2D texturapower_trap;
+Texture2D texturakey = {0};
+Texture2D texturapower_boost = {0}; 
+Texture2D texturapower_stun = {0};
+Texture2D texturapower_trap = {0};
 
 GameScreen currentScreen = MENU; // Começa no menu
 int gameResult = 0;
@@ -56,10 +58,21 @@ int main(void){
     texturaladrao = LoadTexture("textureladrao.png"); 
     texturapolicia = LoadTexture("texturepolicia.png"); 
     texturawall = LoadTexture("texturewall.png");
+    texturakey = LoadTexture("texture_key.png");
+    
     // Carrega texturas dos power-ups (adicione os arquivos na raiz do projeto)
     texturapower_boost = LoadTexture("power_boost.png");
     texturapower_stun = LoadTexture("power_stun.png");
     texturapower_trap = LoadTexture("power_trap.png");
+    
+    // Debug: Verifica se as texturas foram carregadas
+    printf("DEBUG Texturas:\n");
+    printf("  Ladrao: %dx%d (id=%d)\n", texturaladrao.width, texturaladrao.height, texturaladrao.id);
+    printf("  Policia: %dx%d (id=%d)\n", texturapolicia.width, texturapolicia.height, texturapolicia.id);
+    printf("  Wall: %dx%d (id=%d)\n", texturawall.width, texturawall.height, texturawall.id);
+    printf("  Power Boost: %dx%d (id=%d)\n", texturapower_boost.width, texturapower_boost.height, texturapower_boost.id);
+    printf("  Power Stun: %dx%d (id=%d)\n", texturapower_stun.width, texturapower_stun.height, texturapower_stun.id);
+    printf("  Power Trap: %dx%d (id=%d)\n", texturapower_trap.width, texturapower_trap.height, texturapower_trap.id);
     
     SetTargetFPS(60); 
 
@@ -79,6 +92,7 @@ int main(void){
     UnloadTexture(texturaladrao);
     UnloadTexture(texturapolicia);
     UnloadTexture(texturawall);
+    UnloadTexture(texturakey);
     UnloadTexture(texturapower_boost);
     UnloadTexture(texturapower_stun);
     UnloadTexture(texturapower_trap);

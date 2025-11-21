@@ -9,13 +9,19 @@
 extern int TILE_SIZE; // Definido em main.c
 
 // Constantes de cor
-const Color parede = { 255, 255, 255, 255 }; 
+const Color chao = { 211, 211, 211, 255 }; 
 const Color ULTRA_DARKBLUE = { 80, 80, 80, 255 }; 
 
 #define radius ((float)TILE_SIZE / 2.0f)
 #define COLLISION_DISTANCE (float)TILE_SIZE * 0.9f
+
+#define COLLISION_DISTANCE_SQ (COLLISION_DISTANCE * COLLISION_DISTANCE)
 #define ITEM_COLLECTION_RADIUS ((float)TILE_SIZE * 0.45f) 
-#define POWERUP_COLLECTION_RADIUS ((float)TILE_SIZE * 0.5f) // Raio de coleta maior para poderes
+#define ITEM_COLLECTION_RADIUS_SQ (ITEM_COLLECTION_RADIUS * ITEM_COLLECTION_RADIUS)
+#define POWERUP_COLLECTION_RADIUS ((float)TILE_SIZE * 0.5f)
+#define POWERUP_COLLECTION_RADIUS_SQ (POWERUP_COLLECTION_RADIUS * POWERUP_COLLECTION_RADIUS)
+#define STUN_AURA_RANGE ((float)TILE_SIZE * 1.5f)
+#define STUN_AURA_RANGE_SQ (STUN_AURA_RANGE * STUN_AURA_RANGE)
 #define INITIAL_TIME 180.0f
 
 // Mapa do jogo (mantido)
@@ -42,33 +48,124 @@ int gameMap[MAP_ROWS][MAP_COLS] = {
 // Posições iniciais (DECLARADAS sem inicialização)
 static Vector2 policeStartPositions[MAX_POLICIAS]; 
 
-// Variáveis Globais PowerUp e Efeitos (Definidas aqui, extern em jogo.h)
-PowerUp powerups[MAX_POWERUPS];
+// Listas encadeadas (alocação dinâmica)
+ItemNode* itemsHead = NULL;
+PowerUpNode* powerupsHead = NULL;
+
+// Variáveis Globais PowerUp e Efeitos
 int numActivePowerups = 0;
 float powerupSpawnTimer = 0.0f;
 PlacedTrap currentTrap = {0};
 float boostTimer[MAX_POLICIAS + 1] = {0.0f}; 
 int characterState[MAX_POLICIAS + 1] = {0}; 
 
+// ====== FUNÇÕES DE GERENCIAMENTO DE LISTAS ENCADEADAS ======
+
+// Criar um novo PowerUp
+PowerUpNode* PowerUp_Create(int type, Vector2 position) {
+    PowerUpNode* node = (PowerUpNode*)malloc(sizeof(PowerUpNode));
+    if (node) {
+        node->powerup.type = type;
+        node->powerup.position = position;
+        node->powerup.active = 1;
+        node->next = NULL;
+    }
+    return node;
+}
+
+// Adicionar PowerUp à lista
+void PowerUp_AddToList(PowerUpNode** head, PowerUpNode* node) {
+    if (!node) return;
+    node->next = *head;
+    *head = node;
+}
+
+// Remover PowerUp da lista
+void PowerUp_RemoveFromList(PowerUpNode** head, PowerUpNode* node) {
+    if (!head || !*head || !node) return;
+    
+    if (*head == node) {
+        *head = node->next;
+        free(node);
+        return;
+    }
+    
+    PowerUpNode* current = *head;
+    while (current->next && current->next != node) {
+        current = current->next;
+    }
+    
+    if (current->next == node) {
+        current->next = node->next;
+        free(node);
+    }
+}
+
+// Liberar toda a lista de PowerUps
+void PowerUp_FreeList(PowerUpNode** head) {
+    if (!head) return;
+    PowerUpNode* current = *head;
+    while (current) {
+        PowerUpNode* next = current->next;
+        free(current);
+        current = next;
+    }
+    *head = NULL;
+}
+
+// Criar um novo Item
+ItemNode* Item_Create(Vector2 position, int row, int col) {
+    ItemNode* node = (ItemNode*)malloc(sizeof(ItemNode));
+    if (node) {
+        node->item.position = position;
+        node->item.row = row;
+        node->item.col = col;
+        node->item.collected = 0;
+        node->next = NULL;
+    }
+    return node;
+}
+
+// Adicionar Item à lista
+void Item_AddToList(ItemNode** head, ItemNode* node) {
+    if (!node) return;
+    node->next = *head;
+    *head = node;
+}
+
+// Liberar toda a lista de Items
+void Item_FreeList(ItemNode** head) {
+    if (!head) return;
+    ItemNode* current = *head;
+    while (current) {
+        ItemNode* next = current->next;
+        free(current);
+        current = next;
+    }
+    *head = NULL;
+}
+
+// ====== FIM DAS FUNÇÕES DE GERENCIAMENTO ======
+
 
 // Helper: movimenta um personagem com colisão
 static void MoveCharacter(Character* ch, float dt){
     if (!ch->active) return;
     
-    // VERIFICA SE ESTÁ IMOBILIZADO (characterState[index] == 1)
-    if (ch == &ladrao && characterState[0] == 1) return;
-    for (int i = 0; i < numPolicias; i++) {
-        if (ch == &policias[i] && characterState[i + 1] == 1) return;
-    }
+    // VERIFICA SE ESTÁ IMOBILIZADO - otimizado para 2 jogadores
+    int charIndex = (ch == &ladrao) ? 0 : 1;
+    if (characterState[charIndex] == 1) return;
     
     // Normaliza velocidade
     if ((ch->velocity.x != 0.0f) || (ch->velocity.y != 0.0f)) {
         ch->velocity = Vector2Normalize(ch->velocity);
     }
     
+    float moveSpeed = ch->speed * dt;
+    
      // Colisão X
     if (ch->velocity.x != 0.0f) { 
-        float futureX = ch->position.x + ch->velocity.x * ch->speed * dt;
+        float futureX = ch->position.x + ch->velocity.x * moveSpeed;
         int checkSideX = (ch->velocity.x > 0) ? (int)(futureX + radius) : (int)(futureX - radius); 
         int futureCol = checkSideX / TILE_SIZE; 
         int currentRow = (int)(ch->position.y / TILE_SIZE); 
@@ -82,7 +179,7 @@ static void MoveCharacter(Character* ch, float dt){
     
     // Colisão Y
     if (ch->velocity.y != 0.0f) { 
-        float futureY = ch->position.y + ch->velocity.y * ch->speed * dt;
+        float futureY = ch->position.y + ch->velocity.y * moveSpeed;
         int checkSideY = (ch->velocity.y > 0) ? (int)(futureY + radius) : (int)(futureY - radius); 
         int futureRow = checkSideY / TILE_SIZE; 
         int currentCol = (int)(ch->position.x / TILE_SIZE); 
@@ -94,34 +191,37 @@ static void MoveCharacter(Character* ch, float dt){
         } 
     } 
     
-    // Clamp bordas
-    ch->position.x = Clamp(ch->position.x, (float)radius, (float)GetScreenWidth() - (float)radius); 
-    ch->position.y = Clamp(ch->position.y, (float)radius, (float)GetScreenHeight() - (float)radius);
+    // Clamp bordas - usando cache
+    ch->position.x = Clamp(ch->position.x, (float)radius, (float)SCREEN_WIDTH - (float)radius); 
+    ch->position.y = Clamp(ch->position.y, (float)radius, (float)SCREEN_HEIGHT - (float)radius);
 }
 
-// Helper: Tenta spawnar um PowerUp em uma célula vazia
+// Helper: Tenta spawnar um PowerUp em uma célula vazia (COM LISTA ENCADEADA)
 static void TrySpawnPowerUp(int type) {
     if (numActivePowerups >= MAX_POWERUPS) return;
 
-    int freeCells[MAP_ROWS * MAP_COLS][2];
+    // Alocação estática otimizada
+    static int freeCells[100][2];
     int freeCount = 0;
     
-    // 1. Encontrar células livres (não parede, não item, não armadilha ativa)
-    for (int row = 1; row < MAP_ROWS - 1; row++) {
-        for (int col = 1; col < MAP_COLS - 1; col++) {
+    // Encontrar células livres
+    for (int row = 1; row < MAP_ROWS - 1 && freeCount < 100; row++) {
+        for (int col = 1; col < MAP_COLS - 1 && freeCount < 100; col++) {
             if (gameMap[row][col] != TILE_WALL && gameMap[row][col] != TILE_ITEM) {
                 
-                // Verifica se já existe um powerup no local
+                // Verifica se já existe um powerup no local usando lista encadeada
                 int occupied = 0;
-                for (int i = 0; i < MAX_POWERUPS; i++) {
-                    if (powerups[i].active) {
-                        int p_row = (int)(powerups[i].position.y / TILE_SIZE);
-                        int p_col = (int)(powerups[i].position.x / TILE_SIZE);
+                PowerUpNode* current = powerupsHead;
+                while (current != NULL) {
+                    if (current->powerup.active) {
+                        int p_row = (int)(current->powerup.position.y / TILE_SIZE);
+                        int p_col = (int)(current->powerup.position.x / TILE_SIZE);
                         if (p_row == row && p_col == col) {
                             occupied = 1;
                             break;
                         }
                     }
+                    current = current->next;
                 }
                 if (occupied) continue;
 
@@ -133,27 +233,19 @@ static void TrySpawnPowerUp(int type) {
     }
 
     if (freeCount > 0) {
-        // 2. Escolher uma célula aleatória
         int randomIndex = rand() % freeCount;
         int row = freeCells[randomIndex][0];
         int col = freeCells[randomIndex][1];
         
-        // 3. Criar o PowerUp
-        int index = -1;
-        for (int i = 0; i < MAX_POWERUPS; i++) {
-            if (!powerups[i].active) {
-                index = i;
-                break;
-            }
-        }
-
-        if (index != -1) {
-            powerups[index].active = 1;
-            powerups[index].type = type;
-            powerups[index].position = (Vector2){
-                (float)col * TILE_SIZE + TILE_SIZE / 2.0f,
-                (float)row * TILE_SIZE + TILE_SIZE / 2.0f
-            };
+        // Criar PowerUp com alocação dinâmica
+        Vector2 powerupPos = {
+            (float)col * TILE_SIZE + TILE_SIZE / 2.0f,
+            (float)row * TILE_SIZE + TILE_SIZE / 2.0f
+        };
+        PowerUpNode* newPowerup = PowerUp_Create(type, powerupPos);
+        
+        if (newPowerup != NULL) {
+            PowerUp_AddToList(&powerupsHead, newPowerup);
             numActivePowerups++;
         }
     } 
@@ -165,8 +257,9 @@ void InitGame(void){
     
     policeStartPositions[0] = (Vector2){(float)2 * TILE_SIZE + current_radius, (float)1 * TILE_SIZE + current_radius}; // P1
 
-    // Inicializa ladrão: Posição central do mapa.
-    ladrao.position = (Vector2){(float)MAP_COLS * TILE_SIZE / 2.0f, (float)MAP_ROWS * TILE_SIZE / 2.0f};
+    // Inicializa ladrão: Posição no canto inferior direito (longe do policial)
+    // Linha 15, Coluna 27 é uma posição vazia (0) no mapa
+    ladrao.position = (Vector2){(float)27 * TILE_SIZE + current_radius, (float)15 * TILE_SIZE + current_radius};
     ladrao.speed = 180.0f;
     ladrao.active = 1;
     
@@ -176,20 +269,22 @@ void InitGame(void){
     policias[0].active = 1;
     policias[0].playerIndex = 0;
     
-    // Inicializa ITENS (mantido)
+    // === INICIALIZA ITENS COM LISTA ENCADEADA (alocação dinâmica) ===
+    Item_FreeList(&itemsHead); // Libera lista anterior se existir
     numItems = 0;
     itemsCollected = 0;
+    
     for (int row = 0; row < MAP_ROWS; row++) {
         for (int col = 0; col < MAP_COLS; col++) {
             if (gameMap[row][col] == TILE_ITEM) {
-                if (numItems < MAX_ITEMS) {
-                    items[numItems].row = row;
-                    items[numItems].col = col;
-                    items[numItems].position = (Vector2){
-                        (float)col * TILE_SIZE + TILE_SIZE / 2.0f,
-                        (float)row * TILE_SIZE + TILE_SIZE / 2.0f
-                    };
-                    items[numItems].collected = 0;
+                Vector2 itemPos = {
+                    (float)col * TILE_SIZE + TILE_SIZE / 2.0f,
+                    (float)row * TILE_SIZE + TILE_SIZE / 2.0f
+                };
+                ItemNode* newItem = Item_Create(itemPos, row, col);
+                
+                if (newItem != NULL) {
+                    Item_AddToList(&itemsHead, newItem);
                     numItems++;
                 }
             }
@@ -197,7 +292,8 @@ void InitGame(void){
     }
 
     // === Inicializa POWERUPS/EFEITOS ===
-    powerupSpawnTimer = (float)GetRandomValue(4, 8); // INTERVALO DE POWERUP DIMINUÍDO (4-8 segundos)
+    PowerUp_FreeList(&powerupsHead); // Libera powerups anteriores
+    powerupSpawnTimer = (float)GetRandomValue(4, 8);
     numActivePowerups = 0;
     currentTrap.active = 0;
     for (int i = 0; i <= MAX_POLICIAS; i++) {
@@ -232,10 +328,16 @@ void UpdateGame(float dt){
         
         // Ladrão (Índice 0)
         ladrao.velocity = (Vector2){0.0f, 0.0f};
-        if(IsKeyDown(KEY_W)) ladrao.velocity.y -= 1.0f;
-        if(IsKeyDown(KEY_S)) ladrao.velocity.y += 1.0f;
-        if(IsKeyDown(KEY_A)) ladrao.velocity.x -= 1.0f;
-        if(IsKeyDown(KEY_D)) ladrao.velocity.x += 1.0f;
+        // Prioriza movimento vertical sobre horizontal para evitar diagonal
+        if(IsKeyDown(KEY_W)) {
+            ladrao.velocity.y -= 1.0f;
+        } else if(IsKeyDown(KEY_S)) {
+            ladrao.velocity.y += 1.0f;
+        } else if(IsKeyDown(KEY_A)) {
+            ladrao.velocity.x -= 1.0f;
+        } else if(IsKeyDown(KEY_D)) {
+            ladrao.velocity.x += 1.0f;
+        }
         
         // Ajuste de velocidade e tempo de efeito (Ladrão - Índice 0)
         ladrao.speed = 180.0f;
@@ -297,11 +399,16 @@ void UpdateGame(float dt){
             }
             
             p->velocity = (Vector2){0.0f, 0.0f};
-            // Controles do Policial (setas)
-            if (IsKeyDown(KEY_UP)) p->velocity.y -= 1.0f; 
-            if (IsKeyDown(KEY_DOWN)) p->velocity.y += 1.0f;
-            if (IsKeyDown(KEY_LEFT)) p->velocity.x -= 1.0f;
-            if (IsKeyDown(KEY_RIGHT)) p->velocity.x += 1.0f;
+            // Controles do Policial (setas) - Prioriza movimento vertical para evitar diagonal
+            if (IsKeyDown(KEY_UP)) {
+                p->velocity.y -= 1.0f;
+            } else if (IsKeyDown(KEY_DOWN)) {
+                p->velocity.y += 1.0f;
+            } else if (IsKeyDown(KEY_LEFT)) {
+                p->velocity.x -= 1.0f;
+            } else if (IsKeyDown(KEY_RIGHT)) {
+                p->velocity.x += 1.0f;
+            }
 
             MoveCharacter(p, dt);
         }
@@ -318,59 +425,68 @@ void UpdateGame(float dt){
             }
         }
 
-        // === COLETA DE POWERUPS ===
-        for (int i = 0; i < MAX_POWERUPS; i++) {
-            if (powerups[i].active) {
-                int collected = 0;
-                int character_index = -1; // 0=Ladrao, 1,2,3=Policiais
-                
-                // 1. Ladrão coleta (index 0)
-                if (Vector2Distance(ladrao.position, powerups[i].position) < POWERUP_COLLECTION_RADIUS) {
-                    character_index = 0;
+        // === COLETA DE POWERUPS (LISTA ENCADEADA) ===
+        PowerUpNode* currentPowerup = powerupsHead;
+        
+        while (currentPowerup != NULL) {
+            if (!currentPowerup->powerup.active) {
+                currentPowerup = currentPowerup->next;
+                continue;
+            }
+            
+            int collected = 0;
+            int character_index = -1;
+            
+            // Ladrão coleta
+            float dx = ladrao.position.x - currentPowerup->powerup.position.x;
+            float dy = ladrao.position.y - currentPowerup->powerup.position.y;
+            if ((dx * dx + dy * dy) < POWERUP_COLLECTION_RADIUS_SQ) {
+                character_index = 0;
+                collected = 1;
+            } else {
+                // Policial coleta
+                dx = policias[0].position.x - currentPowerup->powerup.position.x;
+                dy = policias[0].position.y - currentPowerup->powerup.position.y;
+                if ((dx * dx + dy * dy) < POWERUP_COLLECTION_RADIUS_SQ) {
+                    character_index = 1;
                     collected = 1;
                 }
-                
-                // 2. Policiais coletam (index j+1)
-                for (int j = 0; j < numPolicias; j++) {
-                    if (!policias[j].active) continue;
-                    if (Vector2Distance(policias[j].position, powerups[i].position) < POWERUP_COLLECTION_RADIUS) {
-                        character_index = j + 1;
-                        collected = 1;
-                        break;
-                    }
+            }
+
+            if (collected) {
+                if (currentPowerup->powerup.type == POWERUP_BOOST) {
+                    boostTimer[character_index] = POWERUP_DURATION_BOOST; 
+                } else if (currentPowerup->powerup.type == POWERUP_STUN_BOMB && character_index == 0) { 
+                    characterState[0] = 2;
+                    boostTimer[0] = POWERUP_DURATION_BOOST;
+                } else if (currentPowerup->powerup.type == POWERUP_TRAP && character_index == 1) { 
+                    currentTrap.position = currentPowerup->powerup.position;
+                    currentTrap.active = 1;
+                    characterState[1] = 0;
+                } else if (currentPowerup->powerup.type == POWERUP_STUN_BOMB && character_index > 0) {
+                    collected = 0;
                 }
 
                 if (collected) {
-                    if (powerups[i].type == POWERUP_BOOST) {
-                        boostTimer[character_index] = POWERUP_DURATION_BOOST; 
-                    } else if (powerups[i].type == POWERUP_STUN_BOMB && character_index == 0) { 
-                        // Ladrão coleta Stun Aura, ativa-o por 5 segundos
-                        characterState[0] = 2; // Estado "Stun Aura Pronto/Ativo"
-                        boostTimer[0] = POWERUP_DURATION_BOOST; // Usa 5s de duração (mesmo tempo do speed)
-                    } else if (powerups[i].type == POWERUP_TRAP && character_index == 1) { 
-                        // Ativa a trap imediatamente!
-                        currentTrap.position = powerups[i].position; // POLICIAL 1: Guarda a POSIÇÃO DO POWERUP
-                        currentTrap.active = 1; // Armadilha colocada no chão AGORA
-                        characterState[1] = 0; // Estado normal (não precisa de estado "Trap Ready")
-                    } else if (powerups[i].type == POWERUP_STUN_BOMB && character_index > 0) {
-                        // Policial não coleta STUN AURA
-                        collected = 0;
-                    }
-
-                    if (collected) {
-                         powerups[i].active = 0;
-                         numActivePowerups--;
-                    }
+                    PowerUpNode* toRemove = currentPowerup;
+                    currentPowerup = currentPowerup->next;
+                    PowerUp_RemoveFromList(&powerupsHead, toRemove);
+                    numActivePowerups--;
+                    continue;
                 }
             }
+            
+            currentPowerup = currentPowerup->next;
         }
         
-        // === COLETA DE ITENS (mantido) ===
-        for (int i = 0; i < numItems; i++) {
-            if (!items[i].collected) {
-                float distance = Vector2Distance(ladrao.position, items[i].position);
-                if (distance < ITEM_COLLECTION_RADIUS) { 
-                    items[i].collected = 1;
+        // === COLETA DE ITENS (LISTA ENCADEADA) ===
+        ItemNode* currentItem = itemsHead;
+        while (currentItem != NULL) {
+            if (!currentItem->item.collected) {
+                float dx = ladrao.position.x - currentItem->item.position.x;
+                float dy = ladrao.position.y - currentItem->item.position.y;
+                if ((dx * dx + dy * dy) < ITEM_COLLECTION_RADIUS_SQ) { 
+                    currentItem->item.collected = 1;
                     itemsCollected++;
                     
                     if (itemsCollected >= numItems) {
@@ -384,6 +500,7 @@ void UpdateGame(float dt){
                     }
                 }
             }
+            currentItem = currentItem->next;
         }
         
         // === DETECÇÃO DE CAPTURA ===
@@ -481,62 +598,120 @@ void DrawGame(void){
                             DrawRectangleRec(destRec, ULTRA_DARKBLUE);
                         }
                     } else {
-                        DrawRectangleRec(destRec, parede); 
+                        DrawRectangleRec(destRec, chao); 
                     }
                 }
             }
 
-            // === DESENHAR ITENS COLETÁVEIS ===
-            float itemRadiusOuter = (float)TILE_SIZE * 0.15f;
-            float itemRadiusInner = (float)TILE_SIZE * 0.10f;
-            for (int i = 0; i < numItems; i++) {
-                if (!items[i].collected) {
-                    int itemX = (int)items[i].position.x;
-                    int itemY = (int)items[i].position.y;
-                    DrawCircle(itemX, itemY, itemRadiusOuter, GOLD);
-                    DrawCircle(itemX, itemY, itemRadiusInner, YELLOW);
+            // === DESENHAR ITENS COLETÁVEIS (LISTA ENCADEADA) ===
+            float itemSize = (float)TILE_SIZE * 0.9375f;  // Aumentado de 0.75f para 0.9375f (25% maior)
+            int useKeyTexture = (texturakey.width > 0 && texturakey.height > 0);
+            
+            ItemNode* currentItem = itemsHead;
+            while (currentItem != NULL) {
+                if (!currentItem->item.collected) {
+                    if (useKeyTexture) {
+                        // Calcula dimensões mantendo a proporção da textura
+                        float aspectRatio = (float)texturakey.width / (float)texturakey.height;
+                        float drawWidth, drawHeight;
+                        
+                        if (aspectRatio > 1.0f) {
+                            drawWidth = itemSize;
+                            drawHeight = itemSize / aspectRatio;
+                        } else {
+                            drawHeight = itemSize;
+                            drawWidth = itemSize * aspectRatio;
+                        }
+                        
+                        DrawTexturePro(
+                            texturakey,
+                            (Rectangle){ 0, 0, (float)texturakey.width, (float)texturakey.height },
+                            (Rectangle){ 
+                                currentItem->item.position.x - drawWidth * 0.5f, 
+                                currentItem->item.position.y - drawHeight * 0.5f, 
+                                drawWidth, 
+                                drawHeight 
+                            },
+                            (Vector2){ 0, 0 },
+                            0.0f,
+                            WHITE
+                        );
+                    } else {
+                        int itemX = (int)currentItem->item.position.x;
+                        int itemY = (int)currentItem->item.position.y;
+                        DrawCircle(itemX, itemY, (float)TILE_SIZE * 0.21f, GOLD);
+                        DrawCircle(itemX, itemY, (float)TILE_SIZE * 0.14f, YELLOW);
+                    }
                 }
+                currentItem = currentItem->next;
             }
             
-            // === DESENHAR POWERUPS (usa texturas se disponíveis) ===
-            float puSize = (float)TILE_SIZE * 0.6f;
-            float puInner = puSize * 0.92f;
-            float puHalf = puInner * 0.5f;
+            // === DESENHAR POWERUPS (LISTA ENCADEADA) ===
+            float puSize = (float)TILE_SIZE * 1.5f;  // Aumentado de 0.6f para 1.5f
             
-            for (int i = 0; i < MAX_POWERUPS; i++) {
-                if (powerups[i].active) {
+            PowerUpNode* currentPowerup = powerupsHead;
+            while (currentPowerup != NULL) {
+                if (currentPowerup->powerup.active) {
                     Texture2D* tex = NULL;
                     Color color = RAYWHITE;
                     char symbol = '?';
                     
-                    if (powerups[i].type == POWERUP_BOOST) { 
+                    if (currentPowerup->powerup.type == POWERUP_BOOST) { 
                         tex = &texturapower_boost; 
                         color = LIME; 
                         symbol = 'S'; 
-                    } else if (powerups[i].type == POWERUP_STUN_BOMB) { 
+                    } else if (currentPowerup->powerup.type == POWERUP_STUN_BOMB) { 
                         tex = &texturapower_stun; 
                         color = BLUE; 
                         symbol = 'A'; 
-                    } else if (powerups[i].type == POWERUP_TRAP) { 
+                    } else if (currentPowerup->powerup.type == POWERUP_TRAP) { 
                         tex = &texturapower_trap; 
                         color = RED; 
                         symbol = 'T'; 
                     }
+                    
+                    // Debug: verifica se a textura é válida
+                    static int debugCount = 0;
+                    if (debugCount < 5 && tex != NULL) {
+                        printf("PowerUp tipo=%d: tex=%p, width=%d, height=%d\n", 
+                               currentPowerup->powerup.type, (void*)tex, tex->width, tex->height);
+                        debugCount++;
+                    }
 
                     if (tex != NULL && tex->width > 0 && tex->height > 0) {
+                        // Calcula dimensões mantendo a proporção da textura
+                        float aspectRatio = (float)tex->width / (float)tex->height;
+                        float drawWidth, drawHeight;
+                        
+                        if (aspectRatio > 1.0f) {
+                            // Textura mais larga que alta
+                            drawWidth = puSize;
+                            drawHeight = puSize / aspectRatio;
+                        } else {
+                            // Textura mais alta que larga (ou quadrada)
+                            drawHeight = puSize;
+                            drawWidth = puSize * aspectRatio;
+                        }
+                        
                         DrawTexturePro(
                             *tex,
                             (Rectangle){ 0, 0, (float)tex->width, (float)tex->height },
-                            (Rectangle){ powerups[i].position.x - puHalf, powerups[i].position.y - puHalf, puInner, puInner },
+                            (Rectangle){ 
+                                currentPowerup->powerup.position.x - drawWidth * 0.5f, 
+                                currentPowerup->powerup.position.y - drawHeight * 0.5f, 
+                                drawWidth, 
+                                drawHeight 
+                            },
                             (Vector2){ 0, 0 },
                             0.0f,
                             WHITE
                         );
                     } else {
                         char buf[2] = {symbol, '\0'};
-                        DrawText(buf, (int)powerups[i].position.x - 5, (int)powerups[i].position.y - 10, 20, color);
+                        DrawText(buf, (int)currentPowerup->powerup.position.x - 5, (int)currentPowerup->powerup.position.y - 10, 20, color);
                     }
                 }
+                currentPowerup = currentPowerup->next;
             }
             
             // === DESENHAR ARMADILHA COLOCADA ===
@@ -592,7 +767,7 @@ void DrawGame(void){
             // === HUD ===
             char timerText[32];
             sprintf(timerText, "TEMPO: %.1fs", gameTimer);
-            DrawText(timerText, 10, 10, 20, BLACK);
+            DrawText(timerText, 10, 10, 20, WHITE);
             
             DrawText("Policial: 1 | Ladrao: 1", 10, 35, 18, BLACK);
             
