@@ -13,8 +13,6 @@
 #define MAP_COLS 30
 #define TILE_WALL 1
 #define TILE_ITEM 2
-#define TILE_EMPTY 0
-#define MAX_ITEMS 20 // Total de itens no mapa
 
 typedef enum { MENU, GAMEPLAY, END_GAME } GameScreen;
 
@@ -24,13 +22,10 @@ typedef struct {
     Vector2 velocity;
     float speed;
     int active;
-    int playerIndex; // 0, 1, 2...
 } Character;
 
 typedef struct {
     Vector2 position;
-    int row;
-    int col;
     int collected;
 } Item;
 
@@ -38,7 +33,6 @@ typedef struct {
 extern GameScreen currentScreen;
 extern Character ladrao;
 extern Character policial;
-extern Item items[MAX_ITEMS];
 extern int numItems;
 extern int itemsCollected;
 extern float gameTimer;
@@ -64,13 +58,12 @@ extern Texture2D texturapower_trap;
 
 // Tipos de Power-ups
 #define POWERUP_BOOST 1      // Aumenta velocidade (Ambos)
-#define POWERUP_STUN_BOMB 2  // Ladrão: Permite atordoar 1 policial
-#define POWERUP_TRAP 3       // Policial 1: Permite colocar armadilha
+#define POWERUP_STUN_BOMB 2  // Ladrão: Permite atordoar policial
+#define POWERUP_TRAP 3       // Policial: Permite colocar armadilha
 
 typedef struct {
-    int type;           // Qual poder (1, 2, 3)
+    int type;
     Vector2 position;
-    int active;         // 0: inativo, 1: ativo/no mapa
 } PowerUp;
 
 // Nó para lista encadeada de PowerUps
@@ -88,7 +81,6 @@ typedef struct ItemNode {
 typedef struct {
     Vector2 position;
     float timeRemaining;
-    int active;         // 1: Armadilha no chão
 } PlacedTrap;
 
 // Nó para lista encadeada de Armadilhas
@@ -98,7 +90,6 @@ typedef struct TrapNode {
 } TrapNode;
 
 // NOVAS VARIÁVEIS EXTERNAS GLOBAIS PARA POWER-UPS/ESTADOS
-extern PowerUp powerups[MAX_POWERUPS];
 extern int numActivePowerups;
 extern float powerupSpawnTimer;
 
@@ -128,7 +119,7 @@ void PowerUp_AddToList(PowerUpNode** head, PowerUpNode* node);
 void PowerUp_RemoveFromList(PowerUpNode** head, PowerUpNode* node);
 void PowerUp_FreeList(PowerUpNode** head);
 
-ItemNode* Item_Create(Vector2 position, int row, int col);
+ItemNode* Item_Create(Vector2 position);
 void Item_AddToList(ItemNode** head, ItemNode* node);
 void Item_FreeList(ItemNode** head);
 
@@ -146,7 +137,6 @@ void Ranking_DrawPolicia(int x, int y);
 void Ranking_LoadLadrao(void);
 void Ranking_SaveLadrao(void);
 void Ranking_AddLadrao(const char* name, int score);
-void Ranking_DrawLadrao(int x, int y); // Antiga linha com erro 'void void'
-// ... Eram as únicas que tinham o erro, agora estão corretas.
+void Ranking_DrawLadrao(int x, int y);
 
 #endif

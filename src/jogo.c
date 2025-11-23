@@ -9,19 +9,14 @@
 extern int TILE_SIZE; // Definido em main.c
 
 // Constantes de cor
-const Color chao = { 211, 211, 211, 255 }; 
+const Color chao = { 211, 211, 211, 255 }; //define a cor do chão
 const Color ULTRA_DARKBLUE = { 80, 80, 80, 255 }; 
 
 #define radius ((float)TILE_SIZE / 2.0f)
-#define COLLISION_DISTANCE (float)TILE_SIZE * 0.9f
-
-#define COLLISION_DISTANCE_SQ (COLLISION_DISTANCE * COLLISION_DISTANCE)
-#define ITEM_COLLECTION_RADIUS ((float)TILE_SIZE * 0.45f) 
-#define ITEM_COLLECTION_RADIUS_SQ (ITEM_COLLECTION_RADIUS * ITEM_COLLECTION_RADIUS)
+#define COLLISION_DISTANCE ((float)TILE_SIZE * 0.9f)
+#define ITEM_COLLECTION_RADIUS ((float)TILE_SIZE * 0.45f)
 #define POWERUP_COLLECTION_RADIUS ((float)TILE_SIZE * 0.5f)
-#define POWERUP_COLLECTION_RADIUS_SQ (POWERUP_COLLECTION_RADIUS * POWERUP_COLLECTION_RADIUS)
 #define STUN_AURA_RANGE ((float)TILE_SIZE * 1.5f)
-#define STUN_AURA_RANGE_SQ (STUN_AURA_RANGE * STUN_AURA_RANGE)
 #define INITIAL_TIME 180.0f
 
 // Mapa do jogo (mantido)
@@ -64,7 +59,6 @@ PowerUpNode* PowerUp_Create(int type, Vector2 position) {
     if (node) {
         node->powerup.type = type;
         node->powerup.position = position;
-        node->powerup.active = 1;
         node->next = NULL;
     }
     return node;
@@ -111,12 +105,10 @@ void PowerUp_FreeList(PowerUpNode** head) {
 }
 
 // Criar um novo Item
-ItemNode* Item_Create(Vector2 position, int row, int col) {
+ItemNode* Item_Create(Vector2 position) {
     ItemNode* node = (ItemNode*)malloc(sizeof(ItemNode));
     if (node) {
         node->item.position = position;
-        node->item.row = row;
-        node->item.col = col;
         node->item.collected = 0;
         node->next = NULL;
     }
@@ -148,7 +140,6 @@ TrapNode* Trap_Create(Vector2 position) {
     if (node) {
         node->trap.position = position;
         node->trap.timeRemaining = TRAP_DURATION;
-        node->trap.active = 1;
         node->next = NULL;
     }
     return node;
@@ -258,17 +249,15 @@ static void TrySpawnPowerUp(int type) {
         for (int col = 1; col < MAP_COLS - 1 && freeCount < 100; col++) {
             if (gameMap[row][col] != TILE_WALL && gameMap[row][col] != TILE_ITEM) {
                 
-                // Verifica se já existe um powerup no local usando lista encadeada
+                // Verifica se já existe um powerup no local
                 int occupied = 0;
                 PowerUpNode* current = powerupsHead;
                 while (current != NULL) {
-                    if (current->powerup.active) {
-                        int p_row = (int)(current->powerup.position.y / TILE_SIZE);
-                        int p_col = (int)(current->powerup.position.x / TILE_SIZE);
-                        if (p_row == row && p_col == col) {
-                            occupied = 1;
-                            break;
-                        }
+                    int p_row = (int)(current->powerup.position.y / TILE_SIZE);
+                    int p_col = (int)(current->powerup.position.x / TILE_SIZE);
+                    if (p_row == row && p_col == col) {
+                        occupied = 1;
+                        break;
                     }
                     current = current->next;
                 }
@@ -301,23 +290,15 @@ static void TrySpawnPowerUp(int type) {
 }
 
 void InitGame(void){
-    
-    float current_radius = (float)TILE_SIZE / 2.0f;
-
-    // Inicializa ladrão: Posição no canto inferior direito (longe do policial)
-    // Linha 15, Coluna 27 é uma posição vazia (0) no mapa
-    ladrao.position = (Vector2){(float)27 * TILE_SIZE + current_radius, (float)15 * TILE_SIZE + current_radius};
+    ladrao.position = (Vector2){(float)27 * TILE_SIZE + radius, (float)15 * TILE_SIZE + radius};
     ladrao.speed = 180.0f;
     ladrao.active = 1;
     
-    // Inicializa policial 
-    policial.position = (Vector2){(float)2 * TILE_SIZE + current_radius, (float)1 * TILE_SIZE + current_radius};
+    policial.position = (Vector2){(float)2 * TILE_SIZE + radius, (float)1 * TILE_SIZE + radius};
     policial.speed = 170.0f;
     policial.active = 1;
-    policial.playerIndex = 0;
     
-    // === INICIALIZA ITENS COM LISTA ENCADEADA (alocação dinâmica) ===
-    Item_FreeList(&itemsHead); // Libera lista anterior se existir
+    Item_FreeList(&itemsHead);
     numItems = 0;
     itemsCollected = 0;
     
@@ -328,7 +309,7 @@ void InitGame(void){
                     (float)col * TILE_SIZE + TILE_SIZE / 2.0f,
                     (float)row * TILE_SIZE + TILE_SIZE / 2.0f
                 };
-                ItemNode* newItem = Item_Create(itemPos, row, col);
+                ItemNode* newItem = Item_Create(itemPos);
                 
                 if (newItem != NULL) {
                     Item_AddToList(&itemsHead, newItem);
@@ -338,14 +319,13 @@ void InitGame(void){
         }
     }
 
-    // === Inicializa POWERUPS/EFEITOS ===
-    PowerUp_FreeList(&powerupsHead); // Libera powerups anteriores
-    Trap_FreeList(&trapsHead); // Libera armadilhas anteriores
+    PowerUp_FreeList(&powerupsHead);
+    Trap_FreeList(&trapsHead);
     powerupSpawnTimer = (float)GetRandomValue(4, 8);
     numActivePowerups = 0;
     boostTimer[0] = 0.0f;
     boostTimer[1] = 0.0f;
-    characterState[0] = 0; // Estado normal
+    characterState[0] = 0;
     characterState[1] = 0;
     
     gameTimer = INITIAL_TIME;
@@ -363,10 +343,9 @@ void UpdateGame(float dt){
         // === GESTÃO DO TEMPORIZADOR DE SPAWN DE POWERUP ===
         powerupSpawnTimer -= dt;
         if (powerupSpawnTimer <= 0.0f) {
-            // Tenta spawnar um dos 3 tipos aleatoriamente
-            int randomType = GetRandomValue(POWERUP_BOOST, POWERUP_TRAP); 
+            int randomType = GetRandomValue(POWERUP_BOOST, POWERUP_TRAP);
             TrySpawnPowerUp(randomType);
-            powerupSpawnTimer = (float)GetRandomValue(4, 8); // INTERVALO DE POWERUP DIMINUÍDO (4-8 segundos)
+            powerupSpawnTimer = (float)GetRandomValue(4, 8);
         }
 
         // === MOVIMENTOS E GESTÃO DE EFEITOS ===
@@ -384,17 +363,14 @@ void UpdateGame(float dt){
             ladrao.velocity.x += 1.0f;
         }
         
-        // Ajuste de velocidade e tempo de efeito (Ladrão - Índice 0)
         ladrao.speed = 180.0f;
-        if (boostTimer[0] > 0.0f) {
-            ladrao.speed = 280.0f; // Boost ativo
+        if (characterState[0] == 1) {
+            ladrao.speed = 0.0f;
             boostTimer[0] -= dt;
-        }
-        // Tempo de STUN do Ladrão (se for 1)
-        if (characterState[0] == 1) { 
-             ladrao.speed = 0.0f;
-             boostTimer[0] -= dt;
-             if (boostTimer[0] <= 0.0f) characterState[0] = 0;
+            if (boostTimer[0] <= 0.0f) characterState[0] = 0;
+        } else if (boostTimer[0] > 0.0f) {
+            ladrao.speed = 280.0f;
+            boostTimer[0] -= dt;
         }
         
         // Lógica de STUN AURA (POWERUP_STUN_BOMB)
@@ -419,21 +395,14 @@ void UpdateGame(float dt){
 
         MoveCharacter(&ladrao, dt);
         
-        // Policial
         policial.speed = 170.0f;
-        if (boostTimer[1] > 0.0f) {
-            // Policial pode ter BOOST ou estar STUNNED. Se estiver STUNNED (state 1), a velocidade é 0.
-            if (characterState[1] == 0) {
-                policial.speed = 270.0f; // Boost ativo
-            }
+        if (characterState[1] == 1) {
+            policial.speed = 0.0f;
             boostTimer[1] -= dt;
-        } 
-        
-        // Tempo de STUN do Policial (se for 1)
-        if (characterState[1] == 1) { 
-            policial.speed = 0.0f; // Imobilizado
-            // O timer é controlado pelo boostTimer[1]
-            if (boostTimer[1] <= 0.0f) characterState[1] = 0; // Fim do stun
+            if (boostTimer[1] <= 0.0f) characterState[1] = 0;
+        } else if (boostTimer[1] > 0.0f) {
+            policial.speed = 270.0f;
+            boostTimer[1] -= dt;
         }
         
         policial.velocity = (Vector2){0.0f, 0.0f};
@@ -452,30 +421,25 @@ void UpdateGame(float dt){
         
         // === GESTÃO DAS ARMADILHAS (TRAP) ===
         TrapNode* currentTrapNode = trapsHead;
-        TrapNode* prevTrap = NULL;
         
         while (currentTrapNode != NULL) {
-            if (currentTrapNode->trap.active) {
-                // Atualiza tempo de duração
-                currentTrapNode->trap.timeRemaining -= dt;
-                
-                // Verifica se expirou
-                if (currentTrapNode->trap.timeRemaining <= 0.0f) {
-                    TrapNode* toRemove = currentTrapNode;
-                    currentTrapNode = currentTrapNode->next;
-                    Trap_RemoveFromList(&trapsHead, toRemove);
-                    continue;
-                }
-                
-                // Checa colisão do Ladrão com a Armadilha
-                float distance = Vector2Distance(ladrao.position, currentTrapNode->trap.position);
-                if (distance < COLLISION_DISTANCE) {
-                    characterState[0] = 1; // Ladrão imobilizado
-                    boostTimer[0] = POWERUP_DURATION_STUN; // Aplica stun (3s)
-                    // Armadilha permanece ativa para outros acionamentos
-                }
+            // Atualiza tempo de duração
+            currentTrapNode->trap.timeRemaining -= dt;
+            
+            // Verifica se expirou
+            if (currentTrapNode->trap.timeRemaining <= 0.0f) {
+                TrapNode* toRemove = currentTrapNode;
+                currentTrapNode = currentTrapNode->next;
+                Trap_RemoveFromList(&trapsHead, toRemove);
+                continue;
             }
-            prevTrap = currentTrapNode;
+            
+            // Checa colisão do Ladrão com a Armadilha
+            float distance = Vector2Distance(ladrao.position, currentTrapNode->trap.position);
+            if (distance < COLLISION_DISTANCE) {
+                characterState[0] = 1;
+                boostTimer[0] = POWERUP_DURATION_STUN;
+            }
             currentTrapNode = currentTrapNode->next;
         }
 
@@ -483,25 +447,22 @@ void UpdateGame(float dt){
         PowerUpNode* currentPowerup = powerupsHead;
         
         while (currentPowerup != NULL) {
-            if (!currentPowerup->powerup.active) {
-                currentPowerup = currentPowerup->next;
-                continue;
-            }
-            
             int collected = 0;
             int character_index = -1;
             
             // Ladrão coleta
             float dx = ladrao.position.x - currentPowerup->powerup.position.x;
             float dy = ladrao.position.y - currentPowerup->powerup.position.y;
-            if ((dx * dx + dy * dy) < POWERUP_COLLECTION_RADIUS_SQ) {
+            float distSq = dx * dx + dy * dy;
+            if (distSq < POWERUP_COLLECTION_RADIUS * POWERUP_COLLECTION_RADIUS) {
                 character_index = 0;
                 collected = 1;
             } else {
                 // Policial coleta
                 dx = policial.position.x - currentPowerup->powerup.position.x;
                 dy = policial.position.y - currentPowerup->powerup.position.y;
-                if ((dx * dx + dy * dy) < POWERUP_COLLECTION_RADIUS_SQ) {
+                distSq = dx * dx + dy * dy;
+                if (distSq < POWERUP_COLLECTION_RADIUS * POWERUP_COLLECTION_RADIUS) {
                     character_index = 1;
                     collected = 1;
                 }
@@ -514,12 +475,10 @@ void UpdateGame(float dt){
                     characterState[0] = 2;
                     boostTimer[0] = POWERUP_DURATION_BOOST;
                 } else if (currentPowerup->powerup.type == POWERUP_TRAP && character_index == 1) { 
-                    // Cria uma nova armadilha na posição do power-up
                     TrapNode* newTrap = Trap_Create(currentPowerup->powerup.position);
                     if (newTrap != NULL) {
                         Trap_AddToList(&trapsHead, newTrap);
                     }
-                    characterState[1] = 0;
                 } else if (currentPowerup->powerup.type == POWERUP_STUN_BOMB && character_index > 0) {
                     collected = 0;
                 }
@@ -542,7 +501,7 @@ void UpdateGame(float dt){
             if (!currentItem->item.collected) {
                 float dx = ladrao.position.x - currentItem->item.position.x;
                 float dy = ladrao.position.y - currentItem->item.position.y;
-                if ((dx * dx + dy * dy) < ITEM_COLLECTION_RADIUS_SQ) { 
+                if ((dx * dx + dy * dy) < ITEM_COLLECTION_RADIUS * ITEM_COLLECTION_RADIUS) { 
                     currentItem->item.collected = 1;
                     itemsCollected++;
                     
@@ -703,65 +662,48 @@ void DrawGame(void){
             
             PowerUpNode* currentPowerup = powerupsHead;
             while (currentPowerup != NULL) {
-                if (currentPowerup->powerup.active) {
-                    Texture2D* tex = NULL;
-                    Color color = RAYWHITE;
-                    char symbol = '?';
+                Texture2D* tex = NULL;
+                char symbol = '?';
                     
-                    if (currentPowerup->powerup.type == POWERUP_BOOST) { 
-                        tex = &texturapower_boost; 
-                        color = LIME; 
-                        symbol = 'S'; 
-                    } else if (currentPowerup->powerup.type == POWERUP_STUN_BOMB) { 
-                        tex = &texturapower_stun; 
-                        color = BLUE; 
-                        symbol = 'A'; 
-                    } else if (currentPowerup->powerup.type == POWERUP_TRAP) { 
-                        tex = &texturapower_trap; 
-                        color = RED; 
-                        symbol = 'T'; 
-                    }
-                    
-                    // Debug: verifica se a textura é válida
-                    static int debugCount = 0;
-                    if (debugCount < 5 && tex != NULL) {
-                        printf("PowerUp tipo=%d: tex=%p, width=%d, height=%d\n", 
-                               currentPowerup->powerup.type, (void*)tex, tex->width, tex->height);
-                        debugCount++;
-                    }
+                if (currentPowerup->powerup.type == POWERUP_BOOST) { 
+                    tex = &texturapower_boost; 
+                    symbol = 'S'; 
+                } else if (currentPowerup->powerup.type == POWERUP_STUN_BOMB) { 
+                    tex = &texturapower_stun; 
+                    symbol = 'A'; 
+                } else if (currentPowerup->powerup.type == POWERUP_TRAP) { 
+                    tex = &texturapower_trap; 
+                    symbol = 'T'; 
+                }
 
-                    if (tex != NULL && tex->width > 0 && tex->height > 0) {
-                        // Calcula dimensões mantendo a proporção da textura
-                        float aspectRatio = (float)tex->width / (float)tex->height;
-                        float drawWidth, drawHeight;
-                        
-                        if (aspectRatio > 1.0f) {
-                            // Textura mais larga que alta
-                            drawWidth = puSize;
-                            drawHeight = puSize / aspectRatio;
-                        } else {
-                            // Textura mais alta que larga (ou quadrada)
-                            drawHeight = puSize;
-                            drawWidth = puSize * aspectRatio;
-                        }
-                        
-                        DrawTexturePro(
-                            *tex,
-                            (Rectangle){ 0, 0, (float)tex->width, (float)tex->height },
-                            (Rectangle){ 
-                                currentPowerup->powerup.position.x - drawWidth * 0.5f, 
-                                currentPowerup->powerup.position.y - drawHeight * 0.5f, 
-                                drawWidth, 
-                                drawHeight 
-                            },
-                            (Vector2){ 0, 0 },
-                            0.0f,
-                            WHITE
-                        );
+                if (tex != NULL && tex->width > 0 && tex->height > 0) {
+                    float aspectRatio = (float)tex->width / (float)tex->height;
+                    float drawWidth, drawHeight;
+                    
+                    if (aspectRatio > 1.0f) {
+                        drawWidth = puSize;
+                        drawHeight = puSize / aspectRatio;
                     } else {
-                        char buf[2] = {symbol, '\0'};
-                        DrawText(buf, (int)currentPowerup->powerup.position.x - 5, (int)currentPowerup->powerup.position.y - 10, 20, color);
+                        drawHeight = puSize;
+                        drawWidth = puSize * aspectRatio;
                     }
+                    
+                    DrawTexturePro(
+                        *tex,
+                        (Rectangle){ 0, 0, (float)tex->width, (float)tex->height },
+                        (Rectangle){ 
+                            currentPowerup->powerup.position.x - drawWidth * 0.5f, 
+                            currentPowerup->powerup.position.y - drawHeight * 0.5f, 
+                            drawWidth, 
+                            drawHeight 
+                        },
+                        (Vector2){ 0, 0 },
+                        0.0f,
+                        WHITE
+                    );
+                } else {
+                    char buf[2] = {symbol, '\0'};
+                    DrawText(buf, (int)currentPowerup->powerup.position.x - 5, (int)currentPowerup->powerup.position.y - 10, 20, WHITE);
                 }
                 currentPowerup = currentPowerup->next;
             }

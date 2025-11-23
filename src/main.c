@@ -15,7 +15,6 @@ float SCALE_Y = 1.0f;
 Character policial;
 Character ladrao;
 
-Item items[MAX_ITEMS];
 int numItems = 0;
 int itemsCollected = 0;
 
