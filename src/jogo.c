@@ -1,15 +1,12 @@
-// src/jogo.c - Versão com Trap Automática e Controles Corrigidos
 #include "../include/jogo.h"
 #include <stdio.h>
 #include <string.h>
 #include "raymath.h"
-#include <stdlib.h> 
+#include <stdlib.h>
 
-// Variáveis de Escala/Layout
-extern int TILE_SIZE; // Definido em main.c
+extern int TILE_SIZE;
 
-// Constantes de cor
-const Color chao = { 211, 211, 211, 255 }; //define a cor do chão
+const Color chao = { 211, 211, 211, 255 };
 const Color ULTRA_DARKBLUE = { 80, 80, 80, 255 }; 
 
 #define radius ((float)TILE_SIZE / 2.0f)
@@ -19,7 +16,6 @@ const Color ULTRA_DARKBLUE = { 80, 80, 80, 255 };
 #define STUN_AURA_RANGE ((float)TILE_SIZE * 1.5f)
 #define INITIAL_TIME 180.0f
 
-// Mapa do jogo (mantido)
 int gameMap[MAP_ROWS][MAP_COLS] = {
     {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, 
     {1, 2, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 0, 1, 0, 0, 2, 0, 0, 0, 0, 1}, 
@@ -40,20 +36,15 @@ int gameMap[MAP_ROWS][MAP_COLS] = {
     {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, 
 };
 
-// Listas encadeadas (alocação dinâmica)
 ItemNode* itemsHead = NULL;
 PowerUpNode* powerupsHead = NULL;
 TrapNode* trapsHead = NULL;
 
-// Variáveis Globais PowerUp e Efeitos
 int numActivePowerups = 0;
 float powerupSpawnTimer = 0.0f;
-float boostTimer[2] = {0.0f}; // [0] Ladrão, [1] Policial
-int characterState[2] = {0};  // [0] Ladrão, [1] Policial 
+float boostTimer[2] = {0.0f};
+int characterState[2] = {0};
 
-// ====== FUNÇÕES DE GERENCIAMENTO DE LISTAS ENCADEADAS ======
-
-// Criar um novo PowerUp
 PowerUpNode* PowerUp_Create(int type, Vector2 position) {
     PowerUpNode* node = (PowerUpNode*)malloc(sizeof(PowerUpNode));
     if (node) {
@@ -64,14 +55,12 @@ PowerUpNode* PowerUp_Create(int type, Vector2 position) {
     return node;
 }
 
-// Adicionar PowerUp à lista
 void PowerUp_AddToList(PowerUpNode** head, PowerUpNode* node) {
     if (!node) return;
     node->next = *head;
     *head = node;
 }
 
-// Remover PowerUp da lista
 void PowerUp_RemoveFromList(PowerUpNode** head, PowerUpNode* node) {
     if (!head || !*head || !node) return;
     
@@ -92,7 +81,6 @@ void PowerUp_RemoveFromList(PowerUpNode** head, PowerUpNode* node) {
     }
 }
 
-// Liberar toda a lista de PowerUps
 void PowerUp_FreeList(PowerUpNode** head) {
     if (!head) return;
     PowerUpNode* current = *head;
@@ -104,7 +92,6 @@ void PowerUp_FreeList(PowerUpNode** head) {
     *head = NULL;
 }
 
-// Criar um novo Item
 ItemNode* Item_Create(Vector2 position) {
     ItemNode* node = (ItemNode*)malloc(sizeof(ItemNode));
     if (node) {
@@ -115,14 +102,12 @@ ItemNode* Item_Create(Vector2 position) {
     return node;
 }
 
-// Adicionar Item à lista
 void Item_AddToList(ItemNode** head, ItemNode* node) {
     if (!node) return;
     node->next = *head;
     *head = node;
 }
 
-// Liberar toda a lista de Items
 void Item_FreeList(ItemNode** head) {
     if (!head) return;
     ItemNode* current = *head;
@@ -134,7 +119,6 @@ void Item_FreeList(ItemNode** head) {
     *head = NULL;
 }
 
-// Criar uma nova Armadilha
 TrapNode* Trap_Create(Vector2 position) {
     TrapNode* node = (TrapNode*)malloc(sizeof(TrapNode));
     if (node) {
@@ -145,14 +129,12 @@ TrapNode* Trap_Create(Vector2 position) {
     return node;
 }
 
-// Adicionar Armadilha à lista
 void Trap_AddToList(TrapNode** head, TrapNode* node) {
     if (!node) return;
     node->next = *head;
     *head = node;
 }
 
-// Remover Armadilha da lista
 void Trap_RemoveFromList(TrapNode** head, TrapNode* node) {
     if (!head || !*head || !node) return;
     
@@ -173,7 +155,6 @@ void Trap_RemoveFromList(TrapNode** head, TrapNode* node) {
     }
 }
 
-// Liberar toda a lista de Armadilhas
 void Trap_FreeList(TrapNode** head) {
     if (!head) return;
     TrapNode* current = *head;
@@ -185,18 +166,12 @@ void Trap_FreeList(TrapNode** head) {
     *head = NULL;
 }
 
-// ====== FIM DAS FUNÇÕES DE GERENCIAMENTO ======
-
-
-// Helper: movimenta um personagem com colisão
 static void MoveCharacter(Character* ch, float dt){
     if (!ch->active) return;
     
-    // VERIFICA SE ESTÁ IMOBILIZADO - otimizado para 2 jogadores
     int charIndex = (ch == &ladrao) ? 0 : 1;
     if (characterState[charIndex] == 1) return;
     
-    // Normaliza velocidade
     if ((ch->velocity.x != 0.0f) || (ch->velocity.y != 0.0f)) {
         ch->velocity = Vector2Normalize(ch->velocity);
     }
@@ -340,7 +315,6 @@ void UpdateGame(float dt){
         }
 } else if (currentScreen == GAMEPLAY) {
         
-        // === GESTÃO DO TEMPORIZADOR DE SPAWN DE POWERUP ===
         powerupSpawnTimer -= dt;
         if (powerupSpawnTimer <= 0.0f) {
             int randomType = GetRandomValue(POWERUP_BOOST, POWERUP_TRAP);
@@ -348,7 +322,6 @@ void UpdateGame(float dt){
             powerupSpawnTimer = (float)GetRandomValue(4, 8);
         }
 
-        // === MOVIMENTOS E GESTÃO DE EFEITOS ===
         
         // Ladrão (Índice 0)
         ladrao.velocity = (Vector2){0.0f, 0.0f};
@@ -419,7 +392,6 @@ void UpdateGame(float dt){
 
         MoveCharacter(&policial, dt);
         
-        // === GESTÃO DAS ARMADILHAS (TRAP) ===
         TrapNode* currentTrapNode = trapsHead;
         
         while (currentTrapNode != NULL) {
@@ -443,7 +415,6 @@ void UpdateGame(float dt){
             currentTrapNode = currentTrapNode->next;
         }
 
-        // === COLETA DE POWERUPS (LISTA ENCADEADA) ===
         PowerUpNode* currentPowerup = powerupsHead;
         
         while (currentPowerup != NULL) {
@@ -495,7 +466,6 @@ void UpdateGame(float dt){
             currentPowerup = currentPowerup->next;
         }
         
-        // === COLETA DE ITENS (LISTA ENCADEADA) ===
         ItemNode* currentItem = itemsHead;
         while (currentItem != NULL) {
             if (!currentItem->item.collected) {
@@ -518,7 +488,6 @@ void UpdateGame(float dt){
             currentItem = currentItem->next;
         }
         
-        // === DETECÇÃO DE CAPTURA ===
         float distance = Vector2Distance(ladrao.position, policial.position);
         // Captura só acontece se nenhum dos dois estiver atordoado
         if (distance < COLLISION_DISTANCE && characterState[0] == 0 && characterState[1] == 0) {
@@ -530,7 +499,6 @@ void UpdateGame(float dt){
             return;
         }
         
-        // === CRONÔMETRO (mantido) ===
         gameTimer -= dt;
         if (gameTimer <= 0.0f) {
             gameTimer = 0.0f;
@@ -595,7 +563,6 @@ void DrawGame(void){
             DrawText("Policial: SETAS | Especial: TRAP (Ativada no chao ao coletar o item)", 100, 560, 18, RAYWHITE);
             
         } else if (currentScreen == GAMEPLAY) {
-            // === DESENHAR O MAPA ===
             int useWallTexture = (texturawall.width > 0 && texturawall.height > 0);
             Rectangle srcWall = {0, 0, (float)texturawall.width, (float)texturawall.height};
             
@@ -614,7 +581,6 @@ void DrawGame(void){
                 }
             }
 
-            // === DESENHAR ITENS COLETÁVEIS (LISTA ENCADEADA) ===
             float itemSize = (float)TILE_SIZE * 0.9375f;  // Aumentado de 0.75f para 0.9375f (25% maior)
             int useKeyTexture = (texturakey.width > 0 && texturakey.height > 0);
             
@@ -657,7 +623,6 @@ void DrawGame(void){
                 currentItem = currentItem->next;
             }
             
-            // === DESENHAR POWERUPS (LISTA ENCADEADA) ===
             float puSize = (float)TILE_SIZE * 1.5f;  // Aumentado de 0.6f para 1.5f
             
             PowerUpNode* currentPowerup = powerupsHead;
@@ -708,7 +673,6 @@ void DrawGame(void){
                 currentPowerup = currentPowerup->next;
             }
             
-            // === DESENHAR ARMADILHAS COLOCADAS ===
             TrapNode* currentTrapNode = trapsHead;
             while (currentTrapNode != NULL) {
                 DrawCircleV(currentTrapNode->trap.position, (float)TILE_SIZE * 0.3f, Fade(RED, 0.7f));
@@ -716,7 +680,6 @@ void DrawGame(void){
                 currentTrapNode = currentTrapNode->next;
             }
 
-            // === DESENHAR LADRÃO E POLICIAIS ===
             float spriteSize = (float)TILE_SIZE;
             float spriteCenter = (float)TILE_SIZE / 2.0f;
             
@@ -758,7 +721,6 @@ void DrawGame(void){
                 pTint
             );
 
-            // === HUD ===
             char timerText[32];
             sprintf(timerText, "TEMPO: %.1fs", gameTimer);
             DrawText(timerText, 10, 10, 20, WHITE);
