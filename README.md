@@ -1,13 +1,13 @@
 # Runner-C
 
-**Runner-C** é um jogo para dois jogadores, desenvolvido em C, para Linux, executado na linha de comando. O jogo é ambientado em um mapa estilo labirinto (semelhante ao Pac-Man), onde um jogador assume o papel de **policial** e o outro, o **ladrão**. Ambos os jogadores competem de maneira estratégica, usando power-ups e habilidades para alcançar seus objetivos. O jogo também conta com um sistema de ranking baseado no tempo, onde o objetivo é completar o jogo o mais rápido possível para alcançar uma posição alta.
+**Runner-C** é um jogo para dois jogadores, desenvolvido em C, para Linux, executado na linha de comando. O jogo é ambientado em um mapa estilo labirinto, onde um jogador assume o papel de **policial** e o outro, o **ladrão**. Ambos os jogadores competem de maneira estratégica, usando power-ups e habilidades para alcançar seus objetivos. O jogo também conta com um sistema de ranking baseado no tempo, onde o objetivo é completar o jogo o mais rápido possível para alcançar uma posição alta.
 
 ---
 
 ## Objetivo
 
-- **Ladrão**: O objetivo do **ladrão** é coletar todas as chaves espalhadas pelo mapa para escapar da "prisão" antes que o policial o capture.
-- **Policial**: O objetivo do **policial** é capturar o ladrão antes que ele consiga coletar todas as chaves e escapar.
+- **Ladrão**: O objetivo do ladrão é coletar todas as chaves espalhadas pelo mapa para escapar da "prisão" antes que o policial o capture.
+- **Policial**: O objetivo do policial é capturar o ladrão antes que ele consiga coletar todas as chaves e escapar.
 
 Ambos os jogadores podem usar power-ups durante o jogo, que incluem armadilhas, escudos e velocidade. Esses power-ups ajudam os jogadores a cumprir seus objetivos ou a dificultar as ações do adversário.
 
@@ -27,10 +27,11 @@ Ambos os jogadores podem usar power-ups durante o jogo, que incluem armadilhas, 
 
 ## Como Jogar
 
-1. **Início do Jogo**: Ao iniciar o jogo, o mapa será gerado aleatoriamente e as posições iniciais de ambos os jogadores serão determinadas.
+1. **Início do Jogo**: Ao iniciar o jogo, o mapa será gerado e as posições iniciais de ambos os jogadores serão determinadas.
+   
 2. **Controles**:
-   - **Policial**: Usa as teclas de direção (`w`, `a`, `s`, `d`) para se mover pelo mapa e tentar capturar o ladrão.
-   - **Ladrão**: Também usa as teclas de direção (`w`, `a`, `s`, `d`) para se mover pelo mapa e coletar as chaves espalhadas.
+    - **Policial**: Usa as teclas de direção (← , ↑ , ↓, →) para se mover pelo mapa e tentar capturar o ladrão.
+   - **Ladrão**: Usa as teclas de direção (`w`, `a`, `s`, `d`) para se mover pelo mapa e coletar as chaves espalhadas.
    - Ambos os jogadores podem usar os power-ups conforme encontrados no mapa.
 3. **Objetivo**:
    - O **ladrão** deve coletar todas as chaves espalhadas pelo mapa.
