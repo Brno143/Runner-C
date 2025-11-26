@@ -26,13 +26,13 @@ typedef struct {
     int collected;
 } Item;
 
-extern GameScreen currentScreen;
+extern GameScreen currentScreen;    
 extern Character ladrao;
 extern Character policial;
 extern int numItems;
 extern int itemsCollected;
 extern float gameTimer;
-extern int gameResult; 
+extern int gameResult;
 extern int lastScore;
 extern char playerName[31];
 extern int enteringName;
@@ -46,13 +46,13 @@ extern Texture2D texturapower_stun;
 extern Texture2D texturapower_trap;
 
 #define MAX_POWERUPS 5
-#define POWERUP_DURATION_BOOST 5.0f 
-#define POWERUP_DURATION_STUN 3.0f  
-#define TRAP_DURATION 10.0f         
+#define POWERUP_DURATION_BOOST 5.0f
+#define POWERUP_DURATION_STUN 3.0f
+#define TRAP_DURATION 10.0f
 
-#define POWERUP_BOOST 1      
-#define POWERUP_STUN_BOMB 2  
-#define POWERUP_TRAP 3       
+#define POWERUP_BOOST 1
+#define POWERUP_STUN_BOMB 2
+#define POWERUP_TRAP 3
 
 typedef struct {
     int type;
@@ -83,8 +83,8 @@ extern int numActivePowerups;
 extern float powerupSpawnTimer;
 
 extern TrapNode* trapsHead;
-extern float boostTimer[2]; 
-extern int characterState[2]; 
+extern float boostTimer[2];
+extern int characterState[2];
 #define RANKING_SIZE 10
 #define RANKING_NAME_MAX 30
 

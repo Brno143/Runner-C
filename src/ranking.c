@@ -4,22 +4,17 @@
 #include <stdlib.h>
 #include "raylib.h"
 
-// Implementação de ranking usando lista encadeada dinâmica
-// Cada nó guarda um ScoreEntry e o ponteiro next
-
 typedef struct RankNode {
     ScoreEntry entry;
     struct RankNode* next;
 } RankNode;
 
-// Cabeças e contadores para Policiais e Ladrão
 static RankNode* rankingPolicia_head = NULL;
 static int rankingPolicia_count = 0;
 
 static RankNode* rankingLadrao_head = NULL;
 static int rankingLadrao_count = 0;
 
-// Helpers
 static RankNode* create_node(const char* name, int score){
     RankNode* n = (RankNode*)malloc(sizeof(RankNode));
     if (!n) return NULL;
@@ -40,7 +35,6 @@ static void free_list(RankNode** head){
     *head = NULL;
 }
 
-// Insere o nó em ordem decrescente (score maior primeiro)
 static void insert_sorted(RankNode** head, RankNode* node){
     if (!head || !node) return;
     if (*head == NULL || node->entry.score > (*head)->entry.score){
@@ -56,13 +50,12 @@ static void insert_sorted(RankNode** head, RankNode* node){
     cur->next = node;
 }
 
-// Remove último nó (menor score). Retorna 1 se removeu, 0 se lista vazia
 static int remove_last(RankNode** head){
     if (!head || !*head) return 0;
     RankNode* cur = *head;
     RankNode* prev = NULL;
     while (cur->next){ prev = cur; cur = cur->next; }
-    if (!prev){ // só um
+    if (!prev){
         free(cur);
         *head = NULL;
     } else {
@@ -72,7 +65,6 @@ static int remove_last(RankNode** head){
     return 1;
 }
 
-// ===== POLICIA =====
 void Ranking_LoadPolicia(void){
     free_list(&rankingPolicia_head);
     rankingPolicia_count = 0;
@@ -108,7 +100,6 @@ void Ranking_AddPolicia(const char* name, int score){
     insert_sorted(&rankingPolicia_head, n);
     rankingPolicia_count++;
     if (rankingPolicia_count > RANKING_SIZE){
-        // remove último
         remove_last(&rankingPolicia_head);
         rankingPolicia_count = RANKING_SIZE;
     }
@@ -131,7 +122,6 @@ void Ranking_DrawPolicia(int x, int y){
     }
 }
 
-// ===== LADRÃO =====
 void Ranking_LoadLadrao(void){
     free_list(&rankingLadrao_head);
     rankingLadrao_count = 0;
