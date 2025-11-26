@@ -43,4 +43,10 @@ Ambos os jogadores podem usar power-ups durante o jogo, que incluem armadilhas, 
 
 5. **Ranking**: O tempo necessário para alcançar o objetivo será registrado e, quanto menor o tempo, mais alto será o ranking do jogador vencedor (seja o policial ou o ladrão).
 
+---
 
+## Gameplay
+
+- **Vitória do policial**: https://youtu.be/XHl0ZyCDbRw
+
+- **Vitória do ladrão**: https://youtu.be/u1OvqjGtSYM
